@@ -33,15 +33,16 @@ html,body{height:100%;overflow:hidden;background:#5ab8ff;font-family:'VT323',mon
   <div class="hint">LMB break • RMB place • WASD smooth move • 1-7 blocks • drag rotate • scroll zoom • R reset</div>
 </div>
 <div class="crosshair"></div>
-<div class="controls"><b>WASD</b> move <b>Shift</b> sprint <b>Space</b> jump<br><b>1-7</b> select &nbsp;<b>R</b> reset &nbsp; <b>F3</b> debug</div>
+<div class="controls"><b>WASD</b> move <b>Shift</b> sprint <b>Space</b> jump<br><b>1-7</b> select &nbsp;<b>R</b> reset &nbsp; Hold <b>MMB</b> to rotate</div>
+<div id="debug" style="position:fixed;top:46px;left:10px;z-index:10;background:rgba(0,0,0,0.65);color:#7fffaa;font:11px monospace;padding:6px 8px;border:1px solid #00f5ff;pointer-events:none;white-space:pre"></div>
 <div class="hotbar" id="hotbar"></div>
 <script src="vendor/three.min.js"></script>
 <script src="vendor/OrbitControls.js"></script>
 <script>
 (function(){
-var WORLD=34, HEIGHT=10, ATLAS_COLS=9;
-var BLOCK={AIR:0,GRASS:1,DIRT:2,STONE:3,WOOD:4,LEAVES:5,SAND:6,PLANKS:7};
-var TILE={grassTop:0,grassSide:1,dirt:2,stone:3,woodSide:4,woodTop:5,leaves:6,sand:7,planks:8};
+var WORLD=36, HEIGHT=11, ATLAS_COLS=10;
+var BLOCK={AIR:0,GRASS:1,DIRT:2,STONE:3,WOOD:4,LEAVES:5,SAND:6,PLANKS:7,SNOW:8};
+var TILE={grassTop:0,grassSide:1,dirt:2,stone:3,woodSide:4,woodTop:5,leaves:6,sand:7,planks:8,snow:9};
 function mk(w,h){var c=document.createElement('canvas');c.width=w;c.height=h;return c}
 function makeAtlas(){
   var atlas=mk(ATLAS_COLS*16,16), g=atlas.getContext('2d');
@@ -96,6 +97,12 @@ function makeAtlas(){
     g.fillStyle='#a67c3a'; g.fillRect(0,3,16,1); g.fillRect(0,7,16,1); g.fillRect(0,11,16,1);
     g.fillStyle='#8b5e2e'; g.fillRect(0,3,16,1); g.fillRect(5,0,1,16); g.fillRect(10,0,1,16);
   });
+  draw(TILE.snow, function(g){
+    g.fillStyle='#f2f7ff';g.fillRect(0,0,16,16);
+    for(var i=0;i<70;i++){var x=(Math.random()*16)|0,y=(Math.random()*16)|0; g.fillStyle=Math.random()<0.5?'#d6e6ff':'#ffffff'; g.fillRect(x,y,1,1)}
+    for(var i=0;i<12;i++){var x=(Math.random()*16)|0,y=(Math.random()*16)|0; g.fillStyle='#a8c4e5'; g.fillRect(x,y,1,1)}
+    g.fillStyle='#c8dfff88'; g.fillRect(0,14,16,2);
+  });
   var tex=new THREE.CanvasTexture(atlas);
   tex.magFilter=THREE.NearestFilter; tex.minFilter=THREE.NearestFilter; tex.encoding=THREE.sRGBEncoding;
   return {atlas:atlas, tex:tex}
@@ -113,6 +120,7 @@ function tileFor(block, face){
   if(block===BLOCK.LEAVES) return TILE.leaves;
   if(block===BLOCK.SAND) return TILE.sand;
   if(block===BLOCK.PLANKS) return TILE.planks;
+  if(block===BLOCK.SNOW){ if(face===2) return TILE.snow; if(face===3) return TILE.dirt; return TILE.snow; }
   return 0;
 }
 
@@ -132,8 +140,10 @@ function init(){
   camera.position.set(28,28,28);
   camera.lookAt(0,0,0);
   renderer=new THREE.WebGLRenderer({antialias:false,powerPreference:'high-performance'});
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.25));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.15));
   renderer.setSize(el.clientWidth, el.clientHeight);
+  renderer.shadowMap.enabled=true;
+  renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   el.appendChild(renderer.domElement);
   renderer.domElement.tabIndex=0;
   renderer.domElement.focus();
@@ -147,12 +157,24 @@ function init(){
   controls.minZoom=0.5; controls.maxZoom=2.6;
   controls.maxPolarAngle=Math.PI/2 - 0.08;
   controls.minPolarAngle=0.25;
-  var amb=new THREE.AmbientLight(0xffffff,1.0);
+  var amb=new THREE.AmbientLight(0xffffff,0.72);
   scene.add(amb);
-  var sun=new THREE.DirectionalLight(0xfff6e0,0.9);
-  sun.position.set(40,60,30);
+  var sun=new THREE.DirectionalLight(0xfff2b8,0.95);
+  sun.position.set(45,65,28);
+  sun.castShadow=true;
+  sun.shadow.mapSize.set(2048,2048);
+  sun.shadow.camera.near=0.5; sun.shadow.camera.far=120;
+  sun.shadow.camera.left=-45; sun.shadow.camera.right=45;
+  sun.shadow.camera.top=45; sun.shadow.camera.bottom=-45;
+  sun.shadow.bias=-0.0006;
   scene.add(sun);
-  scene.add(new THREE.HemisphereLight(0xdfe9ff,0x7aa35a,0.32));
+  var fill=new THREE.DirectionalLight(0x8ec9ff,0.38);
+  fill.position.set(-30,25,-25);
+  scene.add(fill);
+  scene.add(new THREE.HemisphereLight(0xcde6ff,0x6b8a4a,0.45));
+  var rim=new THREE.DirectionalLight(0xffc07a,0.18);
+  rim.position.set(-12,18,40);
+  scene.add(rim);
   var water=new THREE.Mesh(new THREE.PlaneGeometry(180,180), new THREE.MeshLambertMaterial({color:0x3a8fcc}));
   water.rotation.x=-Math.PI/2; water.position.y=-0.15; scene.add(water);
   world=createIslands();
@@ -165,8 +187,9 @@ function init(){
   el.addEventListener('pointerdown', onPointerDown);
   window.addEventListener('keydown', onKeyDown);
   document.addEventListener('keydown', onKeyDown);
-  window.addEventListener('keyup', function(e){ var k=e.key.toLowerCase(); keys[k]=false; if(k===' ') keys[' ']=false; if(e.key==='Shift') sprint=false; });
-  document.addEventListener('keyup', function(e){ var k=e.key.toLowerCase(); keys[k]=false; if(k===' ') keys[' ']=false; if(e.key==='Shift') sprint=false; });
+  function onKeyUp(e){ var k=e.key.toLowerCase(); var kc=e.code?e.code.toLowerCase():''; keys[k]=false; if(kc) keys[kc]=false; if(k===' '||kc==='space') keys[' '] = false; if(kc==='keyw') keys['w']=false; if(kc==='keya') keys['a']=false; if(kc==='keys') keys['s']=false; if(kc==='keyd') keys['d']=false; if(e.key==='Shift') sprint=false; }
+  window.addEventListener('keyup', onKeyUp);
+  document.addEventListener('keyup', onKeyUp);
   window.addEventListener('contextmenu', function(e){e.preventDefault()});
   window.addEventListener('resize', onResize);
   new ResizeObserver(onResize).observe(el);
@@ -177,10 +200,10 @@ function createIslands(){
   var w=[];
   for(var x=0;x<WORLD;x++){w[x]=[]; for(var z=0;z<WORLD;z++){w[x][z]=[]; for(var y=0;y<HEIGHT;y++) w[x][z][y]=0}}
   var islands=[
-    {cx:17,cz:17,rx:11,rz:9, base:3, h:3.2},
-    {cx:7, cz:7, rx:6,rz:6, base:3, h:2.4},
-    {cx:26,cz:27, rx:5,rz:5, base:3, h:2.6},
-    {cx:27,cz:9, rx:4,rz:5, base:3, h:2.2}
+    {cx:18,cz:18,rx:12,rz:10, base:3, h:3.4, biome:'forest'},
+    {cx:7, cz:7, rx:6,rz:6, base:3, h:2.6, biome:'snow'},
+    {cx:27,cz:27, rx:6,rz:6, base:3, h:2.8, biome:'desert'},
+    {cx:28,cz:9, rx:5,rz:4, base:3, h:2.2, biome:'forest'}
   ];
   islands.forEach(function(isl){
     for(var x=Math.max(0,isl.cx-isl.rx-1); x<Math.min(WORLD,isl.cx+isl.rx+1); x++){
@@ -189,37 +212,58 @@ function createIslands(){
         var d=Math.sqrt(dx*dx+dz*dz);
         if(d>1) continue;
         var h = Math.floor((1-d)*isl.h + isl.base);
-        var rnd=(Math.sin(x*1.7)+Math.cos(z*1.9))*0.3;
-        h+= (rnd>0.4?1:0);
+        var rnd=(Math.sin(x*1.7)+Math.cos(z*1.9))*0.35;
+        h+= (rnd>0.5?1:0);
         if(h<isl.base) h=isl.base;
         if(h>=HEIGHT) h=HEIGHT-1;
         for(var y=0;y<h;y++){
-          if(y===h-1) w[x][z][y]=BLOCK.GRASS;
-          else if(y>=h-2) w[x][z][y]=BLOCK.DIRT;
-          else if(y<2) w[x][z][y]=BLOCK.STONE;
-          else w[x][z][y]=BLOCK.DIRT;
+          if(isl.biome==='desert'){
+            if(y>=h-1) w[x][z][y]=BLOCK.SAND;
+            else if(y>=h-2) w[x][z][y]=BLOCK.SAND;
+            else if(y<2) w[x][z][y]=BLOCK.STONE;
+            else w[x][z][y]=BLOCK.SAND;
+          } else if(isl.biome==='snow'){
+            if(y===h-1) w[x][z][y]=BLOCK.SNOW;
+            else if(y===h-2) w[x][z][y]=BLOCK.SNOW;
+            else if(y<2) w[x][z][y]=BLOCK.STONE;
+            else w[x][z][y]=BLOCK.DIRT;
+          } else {
+            if(y===h-1) w[x][z][y]=BLOCK.GRASS;
+            else if(y>=h-2) w[x][z][y]=BLOCK.DIRT;
+            else if(y<2) w[x][z][y]=BLOCK.STONE;
+            else w[x][z][y]=BLOCK.DIRT;
+          }
         }
-        if(d<0.4 && h>3 && Math.random()<0.08){ w[x][z][h]=BLOCK.SAND; }
+        if(isl.biome==='forest' && d<0.4 && h>3 && Math.random()<0.07){ w[x][z][h]=BLOCK.SAND; }
       }
     }
   });
   islands.forEach(function(isl){
-    for(var t=0;t<2;t++){
+    var count = isl.biome==='desert'? 3 : 2;
+    for(var t=0;t<count;t++){
       var tx=Math.floor(isl.cx + (Math.random()-0.5)*isl.rx*1.2);
       var tz=Math.floor(isl.cz + (Math.random()-0.5)*isl.rz*1.2);
-      if(tx<2||tx>=WORLD-2||tz<2||tz>=WORLD-2) continue;
+      if(tx<1||tx>=WORLD-1||tz<1||tz>=WORLD-1) continue;
       var top=-1; for(var y=HEIGHT-1;y>=0;y--) if(w[tx][tz][y]!==0){top=y;break}
-      if(top<0||w[tx][tz][top]!==BLOCK.GRASS) continue;
-      var trunk=3+Math.floor(Math.random()*2);
-      for(var y=1;y<=trunk;y++) if(top+y<HEIGHT) w[tx][tz][top+y]=BLOCK.WOOD;
-      var ly=top+trunk;
-      for(var dx=-1;dx<=1;dx++) for(var dz=-1;dz<=1;dz++) for(var dy=0;dy<=1;dy++){
-        var nx=tx+dx,nz=tz+dz,ny=ly+dy; if(nx<0||nx>=WORLD||nz<0||nz>=WORLD||ny>=HEIGHT) continue;
-        if(dx===0&&dz===0&&dy===0) continue;
-        if(w[nx][nz][ny]===0) w[nx][nz][ny]=BLOCK.LEAVES;
+      if(top<0) continue;
+      if(isl.biome==='desert'){
+        if(w[tx][tz][top]!==BLOCK.SAND) continue;
+        var h2=2+Math.floor(Math.random()*2);
+        for(var y=1;y<=h2;y++) if(top+y<HEIGHT && w[tx][tz][top+y]===0) w[tx][tz][top+y]=BLOCK.WOOD;
+      } else {
+        if(w[tx][tz][top]!==BLOCK.GRASS && w[tx][tz][top]!==BLOCK.SNOW) continue;
+        var trunk=3+Math.floor(Math.random()*2);
+        for(var y=1;y<=trunk;y++) if(top+y<HEIGHT) w[tx][tz][top+y]=BLOCK.WOOD;
+        var ly=top+trunk;
+        for(var dx=-1;dx<=1;dx++) for(var dz=-1;dz<=1;dz++) for(var dy=0;dy<=1;dy++){
+          var nx=tx+dx,nz=tz+dz,ny=ly+dy; if(nx<0||nx>=WORLD||nz<0||nz>=WORLD||ny>=HEIGHT) continue;
+          if(dx===0&&dz===0&&dy===0) continue;
+          if(w[nx][nz][ny]===0) w[nx][nz][ny]=BLOCK.LEAVES;
+        }
+        if(ly+1<HEIGHT && w[tx][tz][ly+1]===0) w[tx][tz][ly+1]=BLOCK.LEAVES;
+        if(ly+2<HEIGHT && w[tx][tz][ly+2]===0) w[tx][tz][ly+2]=BLOCK.LEAVES;
+        if(isl.biome==='snow' && ly+1<HEIGHT) w[tx][tz][ly+1]=BLOCK.SNOW;
       }
-      if(ly+1<HEIGHT && w[tx][tz][ly+1]===0) w[tx][tz][ly+1]=BLOCK.LEAVES;
-      if(ly+2<HEIGHT) w[tx][tz][ly+2]=BLOCK.LEAVES;
     }
   });
   return w;
@@ -227,18 +271,28 @@ function createIslands(){
 
 function buildClouds(){
   cloudGroup=new THREE.Group();
-  var cloudMat=new THREE.MeshLambertMaterial({color:0xffffff, transparent:true, opacity:0.92});
-  for(var i=0;i<9;i++){
+  var topMat=new THREE.MeshLambertMaterial({color:0xffffff, transparent:true, opacity:0.96});
+  var botMat=new THREE.MeshLambertMaterial({color:0xe6eef5, transparent:true, opacity:0.92});
+  for(var i=0;i<12;i++){
     var g=new THREE.Group();
-    var cx=(Math.random()*40-20), cz=(Math.random()*40-20), cy=14+Math.random()*3;
-    var blocks=3+Math.floor(Math.random()*4);
+    var cx=(Math.random()*50-25), cz=(Math.random()*50-25), cy=15+Math.random()*4;
+    var blocks=4+Math.floor(Math.random()*4);
     for(var b=0;b<blocks;b++){
-      var bx=(Math.random()*4-2), bz=(Math.random()*2-1);
-      var m=new THREE.Mesh(new THREE.BoxGeometry(2.2+Math.random()*1.5,0.9,1.6+Math.random()*1.2), cloudMat);
-      m.position.set(bx, (Math.random()-0.5)*0.4, bz);
+      var bx=(Math.random()*5-2.5), bz=(Math.random()*3-1.5);
+      var sx=2.0+Math.random()*1.8, sz=1.4+Math.random()*1.3;
+      var m=new THREE.Mesh(new THREE.BoxGeometry(sx,0.85,sz), topMat);
+      m.position.set(bx, 0.25, bz);
+      m.castShadow=false; m.receiveShadow=false;
       g.add(m);
+      var s=new THREE.Mesh(new THREE.BoxGeometry(sx*0.9,0.45,sz*0.9), botMat);
+      s.position.set(bx*0.98, -0.22, bz*0.98);
+      g.add(s);
     }
+    var puff=new THREE.Mesh(new THREE.BoxGeometry(1.4,0.7,1.4), topMat);
+    puff.position.set((Math.random()-0.5)*1.2, 0.65, (Math.random()-0.5)*1.0);
+    g.add(puff);
     g.position.set(cx,cy,cz);
+    g.rotation.y=Math.random()*0.6;
     cloudGroup.add(g);
   }
   scene.add(cloudGroup);
@@ -280,6 +334,8 @@ function rebuildWorldMesh(){
   geo.setIndex(idx);
   geo.computeBoundingSphere();
   worldMesh=new THREE.Mesh(geo, atlasMat);
+  worldMesh.castShadow=true;
+  worldMesh.receiveShadow=true;
   scene.add(worldMesh);
 }
 
@@ -304,6 +360,7 @@ function buildPlayer(){
   var legR=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.55,0.2), pants); legR.position.set(0.13,0.275,0);
   player.userData={armL:armL,armR:armR,legL:legL,legR:legR,head:head};
   player.add(head); player.add(hairBox); player.add(body); player.add(armL); player.add(armR); player.add(legL); player.add(legR);
+  player.traverse(function(o){ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; }});
   scene.add(player); window.player=player;
   playerX=Math.floor(WORLD/2); playerZ=Math.floor(WORLD/2);
   var h=highestAt(playerX,playerZ); playerY= h>=0? h+1.01 : 0.51;
@@ -315,7 +372,7 @@ function buildPlayer(){
 function buildHotbar(){
   var bar=document.getElementById('hotbar'); bar.innerHTML='';
   var texMap=[null, atlasInfo.atlas, atlasInfo.atlas, atlasInfo.atlas, atlasInfo.atlas, atlasInfo.atlas, atlasInfo.atlas, atlasInfo.atlas];
-  for(var i=1;i<=7;i++){
+  for(var i=1;i<=8;i++){
     var slot=document.createElement('div'); slot.className='slot'+(i===selected?' sel':'');
     var cv=document.createElement('canvas'); cv.width=32; cv.height=32; var g=cv.getContext('2d'); g.imageSmoothingEnabled=false;
     var tile=tileFor(i,2);
@@ -328,16 +385,22 @@ function buildHotbar(){
     bar.appendChild(slot);
   }
 }
-function setSelected(n){ selected=n; document.querySelectorAll('.slot').forEach(function(s,i){ s.classList.toggle('sel', i+1===selected)}); }
+function setSelected(n){ selected=n; if(selected<1) selected=8; if(selected>8) selected=1; document.querySelectorAll('.slot').forEach(function(s,i){ s.classList.toggle('sel', i+1===selected)}); }
 
 function onKeyDown(e){
   var k=e.key.toLowerCase();
-  if(k>='1'&&k<='7'){ setSelected(parseInt(k)); }
-  if(k==='r'){ world=createIslands(); rebuildWorldMesh(); playerX=Math.floor(WORLD/2); playerZ=Math.floor(WORLD/2); var h=highestAt(playerX,playerZ); playerY=h+1.9; velY=0; }
-  if(e.key==='Shift' || e.key==='shift') sprint=true;
-  if(e.code==='Space' || k===' ') { e.preventDefault(); keys[' '] = true; }
+  var kc=e.code?e.code.toLowerCase():'';
+  if(k>='1'&&k<='8'){ setSelected(parseInt(k)); }
+  if(k==='r'){ world=createIslands(); rebuildWorldMesh(); playerX=Math.floor(WORLD/2); playerZ=Math.floor(WORLD/2); var h=highestAt(playerX,playerZ); playerY=h>=0?h+1.01:0.51; velY=0; }
+  if(e.key==='Shift') sprint=true;
   keys[k]=true;
-  if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright',' '].indexOf(k)>=0) e.preventDefault();
+  if(kc) keys[kc]=true;
+  if(kc==='space' || k===' ') keys[' '] = true;
+  if(kc==='keyw') keys['w']=true;
+  if(kc==='keya') keys['a']=true;
+  if(kc==='keys') keys['s']=true;
+  if(kc==='keyd') keys['d']=true;
+  if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright',' ','keyw','keya','keys','keyd','space'].indexOf(k)>=0 || ['keyw','keya','keys','keyd','space'].indexOf(kc)>=0) e.preventDefault();
 }
 
 var mouseDownPos=null, isDragging=false;
@@ -446,8 +509,10 @@ function animate(){
   controls.target.x += (player.position.x - controls.target.x)*0.18;
   controls.target.z += (player.position.z - controls.target.z)*0.18;
   controls.target.y += (player.position.y +0.35 - controls.target.y)*0.18;
-  if(cloudGroup){ cloudGroup.children.forEach(function(c,i){ c.position.x += Math.sin(now*0.00012 + i)*0.003; }); }
+  if(cloudGroup){ cloudGroup.children.forEach(function(c,i){ c.position.x += Math.sin(now*0.00012 + i)*0.003; c.position.z += Math.cos(now*0.00009 + i)*0.001; }); }
   controls.update();
+  var dbg=document.getElementById('debug');
+  if(dbg){ var fps=Math.round(1000/(dt*1000))*1; if(!isFinite(fps)) fps=0; else fps=Math.round(1/dt); dbg.textContent='POS '+playerX+','+playerZ+' Y'+player.position.y.toFixed(2)+'  VY'+velY.toFixed(1)+' | KEYS '+(keys['w']?'W':'-')+(keys['a']?'A':'-')+(keys['s']?'S':'-')+(keys['d']?'D':'-')+(keys[' ']?' JUMP':'')+(sprint?' SPRINT':'')+' | FPS '+fps+' | MMB-rotate'; dbg.style.color = (keys['w']||keys['a']||keys['s']||keys['d'])?'#ffde59':'#7fffaa'; }
   renderer.render(scene,camera);
 }
 function onResize(){
