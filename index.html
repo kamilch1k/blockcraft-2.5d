@@ -471,11 +471,20 @@ function animate(){
       var curH=highestAt(playerX,playerZ);
       var nxtH=highestAt(bx,bz);
       var step = nxtH - curH;
-      var canStep = (nxtH===-1) || (step<=1);
+      var curGroundY = curH>=0? curH+1.01 : 0.51;
+      var onGround = Math.abs(player.position.y - curGroundY) < 0.12 && Math.abs(velY) < 0.2;
+      var canStep = false;
+      var needJump = false;
+      if(nxtH===-1) canStep=true;
+      else if(step<=0) canStep=true;
+      else if(step===1){
+        if(onGround) { needJump=true; canStep=true; } else canStep=false;
+      } else canStep=false;
       if(canStep){
+        if(needJump && velY===0) velY=6.0;
         player.position.x=nx; player.position.z=nz;
         playerX=bx; playerZ=bz;
-        playerTargetY= nxtH>=0? nxtH+1.01 : playerTargetY - 8*dt;
+        if(!needJump) playerTargetY= nxtH>=0? nxtH+1.01 : playerTargetY - 8*dt;
         var targetYaw=Math.atan2(worldDx, worldDz);
         var dy=targetYaw - player.rotation.y;
         while(dy>Math.PI) dy-=Math.PI*2;
