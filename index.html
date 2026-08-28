@@ -40,7 +40,7 @@ html,body{height:100%;overflow:hidden;background:#5ab8ff;font-family:'VT323',mon
 <script src="vendor/OrbitControls.js"></script>
 <script>
 (function(){
-var WORLD=36, HEIGHT=11, ATLAS_COLS=10;
+var WORLD=42, HEIGHT=11, ATLAS_COLS=10;
 var BLOCK={AIR:0,GRASS:1,DIRT:2,STONE:3,WOOD:4,LEAVES:5,SAND:6,PLANKS:7,SNOW:8};
 var TILE={grassTop:0,grassSide:1,dirt:2,stone:3,woodSide:4,woodTop:5,leaves:6,sand:7,planks:8,snow:9};
 function mk(w,h){var c=document.createElement('canvas');c.width=w;c.height=h;return c}
@@ -125,7 +125,7 @@ function tileFor(block, face){
 }
 
 var scene,camera,renderer,controls,raycaster,mouse, world, worldMesh, cloudGroup;
-var player, playerX, playerZ, playerY, velY=0;
+var player, playerX, playerZ, playerY, velY=0, velX=0, velZ=0;
 var selected=1;
 var keys={}, sprint=false;
 
@@ -200,10 +200,11 @@ function createIslands(){
   var w=[];
   for(var x=0;x<WORLD;x++){w[x]=[]; for(var z=0;z<WORLD;z++){w[x][z]=[]; for(var y=0;y<HEIGHT;y++) w[x][z][y]=0}}
   var islands=[
-    {cx:18,cz:18,rx:12,rz:10, base:3, h:3.4, biome:'forest'},
-    {cx:7, cz:7, rx:6,rz:6, base:3, h:2.6, biome:'snow'},
-    {cx:27,cz:27, rx:6,rz:6, base:3, h:2.8, biome:'desert'},
-    {cx:28,cz:9, rx:5,rz:4, base:3, h:2.2, biome:'forest'}
+    {cx:21,cz:21,rx:9,rz:8, base:3, h:3.2, biome:'forest'},
+    {cx:8, cz:8, rx:5,rz:5, base:3, h:2.5, biome:'snow'},
+    {cx:33,cz:33, rx:5,rz:5, base:3, h:2.6, biome:'desert'},
+    {cx:33,cz:8, rx:4,rz:4, base:3, h:2.0, biome:'forest'},
+    {cx:8, cz:33, rx:4,rz:4, base:3, h:2.3, biome:'desert'}
   ];
   islands.forEach(function(isl){
     for(var x=Math.max(0,isl.cx-isl.rx-1); x<Math.min(WORLD,isl.cx+isl.rx+1); x++){
@@ -451,47 +452,56 @@ var walkTime=0;
 function animate(){
   requestAnimationFrame(animate);
   var now=performance.now(), dt=Math.min((now-lastTime)/1000,0.05); lastTime=now;
-  var speed = sprint? 7.2 : 4.0;
   var mvX=0,mvZ=0;
-  if(keys['w']||keys['arrowup']) mvZ-=1;
-  if(keys['s']||keys['arrowdown']) mvZ+=1;
-  if(keys['a']||keys['arrowleft']) mvX-=1;
-  if(keys['d']||keys['arrowright']) mvX+=1;
+  if(keys['w']||keys['arrowup']||keys['keyw']) mvZ-=1;
+  if(keys['s']||keys['arrowdown']||keys['keys']) mvZ+=1;
+  if(keys['a']||keys['arrowleft']||keys['keya']) mvX-=1;
+  if(keys['d']||keys['arrowright']||keys['keyd']) mvX+=1;
   var moving = mvX!==0||mvZ!==0;
+  var targetVX=0, targetVZ=0;
+  var yaw = Math.atan2(camera.position.x - controls.target.x, camera.position.z - controls.target.z);
+  var s=Math.sin(yaw), c=Math.cos(yaw);
   if(moving){
     var len=Math.hypot(mvX,mvZ); mvX/=len; mvZ/=len;
-    var yaw = Math.atan2(camera.position.x - controls.target.x, camera.position.z - controls.target.z);
-    var s=Math.sin(yaw), c=Math.cos(yaw);
     var worldDx = mvX*c + mvZ*s;
     var worldDz = -mvX*s + mvZ*c;
-    var nx=player.position.x + worldDx*speed*dt;
-    var nz=player.position.z + worldDz*speed*dt;
+    var curSpeed = sprint? 7.2 : 4.0;
+    targetVX = worldDx*curSpeed;
+    targetVZ = worldDz*curSpeed;
+    var targetYaw=Math.atan2(worldDx, worldDz);
+    var dy=targetYaw - player.rotation.y;
+    while(dy>Math.PI) dy-=Math.PI*2;
+    while(dy<-Math.PI) dy+=Math.PI*2;
+    player.rotation.y += dy*0.14;
+  }
+  velX += (targetVX - velX)*0.22;
+  velZ += (targetVZ - velZ)*0.22;
+  if(!moving){ velX*=0.84; velZ*=0.84; if(Math.abs(velX)<0.02) velX=0; if(Math.abs(velZ)<0.02) velZ=0; }
+  if(Math.abs(velX)>0.01 || Math.abs(velZ)>0.01){
+    var nx=player.position.x + velX*dt;
+    var nz=player.position.z + velZ*dt;
     var bx=Math.floor(nx + WORLD/2), bz=Math.floor(nz + WORLD/2);
     if(bx>=0&&bx<WORLD&&bz>=0&&bz<WORLD){
       var curH=highestAt(playerX,playerZ);
       var nxtH=highestAt(bx,bz);
       var step = nxtH - curH;
       var curGroundY = curH>=0? curH+1.01 : 0.51;
-      var onGround = Math.abs(player.position.y - curGroundY) < 0.12 && Math.abs(velY) < 0.2;
-      var canStep = false;
-      var needJump = false;
+      var onGround = Math.abs(player.position.y - curGroundY) < 0.14 && Math.abs(velY) < 0.3;
+      var canStep=false;
+      var willJump=false;
       if(nxtH===-1) canStep=true;
       else if(step<=0) canStep=true;
       else if(step===1){
-        if(onGround) { needJump=true; canStep=true; } else canStep=false;
-      } else canStep=false;
+        if(!onGround) canStep=true;
+        else if(keys[' ']||keys['space']) { canStep=true; willJump=true; }
+        else canStep=false;
+      }
       if(canStep){
-        if(needJump && velY===0) velY=6.0;
+        if(willJump && Math.abs(velY)<0.2) velY=6.4;
         player.position.x=nx; player.position.z=nz;
         playerX=bx; playerZ=bz;
-        if(!needJump) playerTargetY= nxtH>=0? nxtH+1.01 : playerTargetY - 8*dt;
-        var targetYaw=Math.atan2(worldDx, worldDz);
-        var dy=targetYaw - player.rotation.y;
-        while(dy>Math.PI) dy-=Math.PI*2;
-        while(dy<-Math.PI) dy+=Math.PI*2;
-        player.rotation.y += dy*0.18;
-      }
-    }
+      } else { velX*=0.25; velZ*=0.25; }
+    } else { player.position.x=nx; player.position.z=nz; }
   }
   velY -= 14*dt;
   player.position.y += velY*dt;
