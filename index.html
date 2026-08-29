@@ -125,7 +125,7 @@ function tileFor(block, face){
 }
 
 var scene,camera,renderer,controls,raycaster,mouse, world, worldMesh, cloudGroup;
-var player, playerX, playerZ, playerY, velY=0, velX=0, velZ=0;
+var player, playerX, playerZ, playerY, velY=0, velX=0, velZ=0, coyote=0, jBuffer=0, jumpsLeft=2;
 var selected=1;
 var keys={}, sprint=false;
 
@@ -362,7 +362,9 @@ function buildPlayer(){
   player.userData={armL:armL,armR:armR,legL:legL,legR:legR,head:head};
   player.add(head); player.add(hairBox); player.add(body); player.add(armL); player.add(armR); player.add(legL); player.add(legR);
   player.traverse(function(o){ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; }});
-  scene.add(player); window.player=player;
+  scene.add(player); window.player=player; window.world=world; window.highestAt=highestAt; window.WORLD=WORLD;
+  window.setPlayerPos=function(x,z){ playerX=x; playerZ=z; var h=highestAt(x,z); player.position.set(x - WORLD/2 +0.5, h>=0?h+1.01:0.51, z - WORLD/2 +0.5); velY=0; velX=0; velZ=0; controls.target.set(player.position.x, player.position.y+0.35, player.position.z); };
+  window.getPlayerPos=function(){ return {x:playerX, z:playerZ}; };
   playerX=Math.floor(WORLD/2); playerZ=Math.floor(WORLD/2);
   var h=highestAt(playerX,playerZ); playerY= h>=0? h+1.01 : 0.51;
   player.position.set(playerX - WORLD/2 +0.5, playerY, playerZ - WORLD/2 +0.5);
@@ -465,18 +467,33 @@ function animate(){
     var len=Math.hypot(mvX,mvZ); mvX/=len; mvZ/=len;
     var worldDx = mvX*c + mvZ*s;
     var worldDz = -mvX*s + mvZ*c;
-    var curSpeed = sprint? 7.2 : 4.0;
+    var curSpeed = sprint? 7.4 : 4.2;
     targetVX = worldDx*curSpeed;
     targetVZ = worldDz*curSpeed;
     var targetYaw=Math.atan2(worldDx, worldDz);
     var dy=targetYaw - player.rotation.y;
     while(dy>Math.PI) dy-=Math.PI*2;
     while(dy<-Math.PI) dy+=Math.PI*2;
-    player.rotation.y += dy*0.14;
+    player.rotation.y += dy*0.16;
   }
-  velX += (targetVX - velX)*0.22;
-  velZ += (targetVZ - velZ)*0.22;
-  if(!moving){ velX*=0.84; velZ*=0.84; if(Math.abs(velX)<0.02) velX=0; if(Math.abs(velZ)<0.02) velZ=0; }
+  velX += (targetVX - velX)*0.24;
+  velZ += (targetVZ - velZ)*0.24;
+  if(!moving){ velX*=0.82; velZ*=0.82; if(Math.abs(velX)<0.02) velX=0; if(Math.abs(velZ)<0.02) velZ=0; }
+  var curH0 = highestAt(playerX,playerZ);
+  var curGroundY0 = curH0>=0? curH0+1.01 : 0.51;
+  var onGround0 = Math.abs(player.position.y - curGroundY0) <0.16 && Math.abs(velY) <0.4;
+  if(onGround0){ coyote=0.16; jumpsLeft=2; } else coyote-=dt;
+  if(keys[' ']||keys['space']) jBuffer=0.16; else jBuffer-=dt;
+  if(jBuffer>0 && jumpsLeft>0){
+    var canJumpNow = onGround0 || coyote>0 || jumpsLeft===1;
+    if(canJumpNow){
+      velY=7.0;
+      jBuffer=0;
+      jumpsLeft--;
+      coyote=0;
+      if(moving){ velX+=targetVX*0.14; velZ+=targetVZ*0.14; }
+    }
+  }
   if(Math.abs(velX)>0.01 || Math.abs(velZ)>0.01){
     var nx=player.position.x + velX*dt;
     var nz=player.position.z + velZ*dt;
@@ -484,30 +501,25 @@ function animate(){
     if(bx>=0&&bx<WORLD&&bz>=0&&bz<WORLD){
       var curH=highestAt(playerX,playerZ);
       var nxtH=highestAt(bx,bz);
-      var step = nxtH - curH;
-      var curGroundY = curH>=0? curH+1.01 : 0.51;
-      var onGround = Math.abs(player.position.y - curGroundY) < 0.14 && Math.abs(velY) < 0.3;
       var canStep=false;
-      var willJump=false;
-      if(nxtH===-1) canStep=true;
-      else if(step<=0) canStep=true;
-      else if(step===1){
-        if(!onGround) canStep=true;
-        else if(keys[' ']||keys['space']) { canStep=true; willJump=true; }
+      if(!onGround0) canStep=true;
+      else {
+        if(nxtH===-1) canStep=true;
+        else if(nxtH===curH) canStep=true;
+        else if(nxtH===curH+1 && (keys[' ']||keys['space'])) canStep=true;
         else canStep=false;
       }
       if(canStep){
-        if(willJump && Math.abs(velY)<0.2) velY=6.4;
         player.position.x=nx; player.position.z=nz;
         playerX=bx; playerZ=bz;
-      } else { velX*=0.25; velZ*=0.25; }
+      } else { velX*=0.18; velZ*=0.18; }
     } else { player.position.x=nx; player.position.z=nz; }
   }
-  velY -= 14*dt;
+  velY -= 16*dt;
   player.position.y += velY*dt;
   var ground=highestAt(playerX,playerZ);
   var groundY= ground>=0? ground+1.01 : 0.51;
-  if(player.position.y <= groundY){ player.position.y=groundY; velY=0; if(keys[' ']) velY=6.2; }
+  if(player.position.y <= groundY){ player.position.y=groundY; velY=0; }
   playerTargetY=groundY;
   if(moving){
     walkTime+=dt*9;
