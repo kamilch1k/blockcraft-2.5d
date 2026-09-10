@@ -10,7 +10,7 @@
 html,body{height:100%;overflow:hidden;background:#5ab8ff;font-family:'VT323',monospace}
 #game{position:fixed;inset:0}
 #game canvas{display:block}
-body:after{content:"";position:fixed;inset:0;z-index:8;pointer-events:none;background:radial-gradient(circle at 52% 42%,transparent 52%,rgba(16,31,48,.16) 100%);mix-blend-mode:multiply}
+body:after{content:"";position:fixed;inset:0;z-index:8;pointer-events:none;background:radial-gradient(circle at 52% 42%,transparent 52%,rgba(16,31,48,.07) 100%);mix-blend-mode:multiply}
 .hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;pointer-events:none;z-index:10}
 .hud .title{font-family:'Press Start 2P',monospace;font-size:13px;color:#fff;text-shadow:3px 3px 0 #2b1a0a,5px 5px 0 #000}
 .hud .hint{pointer-events:auto;font-family:'VT323',monospace;font-size:16px;background:rgba(22,33,62,0.9);border:2px solid #00f5ff;color:#00f5ff;padding:4px 10px;cursor:pointer}
@@ -224,7 +224,7 @@ function init(){
   renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   renderer.outputEncoding=THREE.sRGBEncoding;
   renderer.toneMapping=THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure=1.08;
+  renderer.toneMappingExposure=1.16;
   el.appendChild(renderer.domElement);
   renderer.domElement.tabIndex=0;
   renderer.domElement.focus();
@@ -238,9 +238,9 @@ function init(){
   controls.minZoom=0.5; controls.maxZoom=2.6;
   controls.maxPolarAngle=Math.PI/2 - 0.08;
   controls.minPolarAngle=0.25;
-  var amb=new THREE.AmbientLight(0xffffff,0.28);
+  var amb=new THREE.AmbientLight(0xffffff,0.38);
   scene.add(amb);
-  sunLight=new THREE.DirectionalLight(0xffe5a1,1.3);
+  sunLight=new THREE.DirectionalLight(0xffebba,1.38);
   sunLight.position.set(45,65,28);
   sunLight.castShadow=true;
   sunLight.shadow.mapSize.set(2048,2048);
@@ -252,7 +252,7 @@ function init(){
   var fill=new THREE.DirectionalLight(0x78b8f0,0.3);
   fill.position.set(-30,25,-25);
   scene.add(fill);
-  scene.add(new THREE.HemisphereLight(0xcde6ff,0x536a3f,0.5));
+  scene.add(new THREE.HemisphereLight(0xd9edff,0x6b804d,0.56));
   var rim=new THREE.DirectionalLight(0xffa75f,0.24);
   rim.position.set(-12,18,40);
   scene.add(rim);
@@ -475,7 +475,7 @@ function rebuildWorldMesh(){
       var ox=x+normal[0],oy=y+normal[1],oz=z+normal[2];
       var s1=aoSolid(blockAt(ox+a[0]*sa,oy+a[1]*sa,oz+a[2]*sa)),s2=aoSolid(blockAt(ox+b[0]*sb,oy+b[1]*sb,oz+b[2]*sb));
       var corner=aoSolid(blockAt(ox+a[0]*sa+b[0]*sb,oy+a[1]*sa+b[1]*sb,oz+a[2]*sa+b[2]*sb));
-      var level=s1&&s2?3:(s1?1:0)+(s2?1:0)+(corner?1:0),light=faceShade*[1,.84,.7,.55][level];
+      var level=s1&&s2?3:(s1?1:0)+(s2?1:0)+(corner?1:0),light=faceShade*[1,.88,.77,.65][level];
       var grassNoise=Math.sin(x*12.9898+z*78.233)*43758.5453;grassNoise-=Math.floor(grassNoise);
       var tint=world[x][z][y]===BLOCK.GRASS?.95+grassNoise*.1:1;
       col.push(light*tint,light,light*(2-tint));
