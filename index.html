@@ -238,10 +238,10 @@ function init(){
   controls.minZoom=0.5; controls.maxZoom=2.6;
   controls.maxPolarAngle=Math.PI/2 - 0.08;
   controls.minPolarAngle=0.25;
-  var amb=new THREE.AmbientLight(0xffffff,0.38);
+  var amb=new THREE.AmbientLight(0xfff3dc,0.4);
   scene.add(amb);
-  sunLight=new THREE.DirectionalLight(0xffebba,1.38);
-  sunLight.position.set(45,65,28);
+  sunLight=new THREE.DirectionalLight(0xffd27d,1.62);
+  sunLight.position.set(45,48,28);
   sunLight.castShadow=true;
   sunLight.shadow.mapSize.set(2048,2048);
   sunLight.shadow.camera.near=0.5;sunLight.shadow.camera.far=120;
@@ -253,7 +253,7 @@ function init(){
   fill.position.set(-30,25,-25);
   scene.add(fill);
   scene.add(new THREE.HemisphereLight(0xd9edff,0x6b804d,0.56));
-  var rim=new THREE.DirectionalLight(0xffa75f,0.24);
+  var rim=new THREE.DirectionalLight(0xffc16b,0.36);
   rim.position.set(-12,18,40);
   scene.add(rim);
   buildSky();buildWater();
@@ -434,7 +434,7 @@ function buildClouds(){
 
 function buildSky(){
   var material=new THREE.ShaderMaterial({side:THREE.BackSide,depthWrite:false,fog:false,uniforms:{
-    bottomColor:{value:new THREE.Color(0xd8ebff)},midColor:{value:new THREE.Color(0x8bbfff)},topColor:{value:new THREE.Color(0x3f8fe8)},sunDir:{value:new THREE.Vector3(.45,.55,.35).normalize()}
+    bottomColor:{value:new THREE.Color(0xffe6b8)},midColor:{value:new THREE.Color(0x8bbfff)},topColor:{value:new THREE.Color(0x3f8fe8)},sunDir:{value:new THREE.Vector3(45,48,28).normalize()}
   },vertexShader:'varying vec3 vDir;void main(){vDir=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',fragmentShader:[
     'varying vec3 vDir;uniform vec3 bottomColor;uniform vec3 midColor;uniform vec3 topColor;uniform vec3 sunDir;',
     'void main(){vec3 d=normalize(vDir);float t=pow(clamp((d.y+1.0)*.5,0.0,1.0),1.4);vec3 col=t<.5?mix(bottomColor,midColor,t*2.0):mix(midColor,topColor,(t-.5)*2.0);',
@@ -446,7 +446,7 @@ function buildSky(){
 function buildWater(){
   var material=new THREE.ShaderMaterial({transparent:true,depthWrite:false,fog:false,uniforms:{time:{value:0},deep:{value:new THREE.Color(0x277fb3)},light:{value:new THREE.Color(0x62bed5)},fogColor:{value:new THREE.Color(0x8ec9ff)}},
     vertexShader:'uniform float time;varying vec3 vWorld;varying float vWave;void main(){vec3 p=position;vWave=sin((p.x+p.y)*.35+time*1.2)*.045;p.z+=vWave;vec4 w=modelMatrix*vec4(p,1.0);vWorld=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}',
-    fragmentShader:'uniform float time;uniform vec3 deep;uniform vec3 light;uniform vec3 fogColor;varying vec3 vWorld;varying float vWave;void main(){float ripple=sin((vWorld.x-vWorld.z)*.7+time*1.8)*.5+.5;vec3 col=mix(deep,light,.34+ripple*.16+vWave*2.0);float glint=pow(max(0.0,sin(vWorld.x*.9+time)+cos(vWorld.z*.8-time*.7))*.5,8.0);col+=vec3(.45,.68,.72)*glint*.22;float fog=smoothstep(55.0,110.0,distance(cameraPosition,vWorld));gl_FragColor=vec4(mix(col,fogColor,fog),.9);}'
+    fragmentShader:'uniform float time;uniform vec3 deep;uniform vec3 light;uniform vec3 fogColor;varying vec3 vWorld;varying float vWave;void main(){float ripple=sin((vWorld.x-vWorld.z)*.7+time*1.8)*.5+.5;vec3 col=mix(deep,light,.34+ripple*.16+vWave*2.0);float glint=pow(max(0.0,sin(vWorld.x*.9+time)+cos(vWorld.z*.8-time*.7))*.5,8.0);col+=vec3(1.0,.78,.38)*glint*.3;float fog=smoothstep(55.0,110.0,distance(cameraPosition,vWorld));gl_FragColor=vec4(mix(col,fogColor,fog),.9);}'
   });
   water=new THREE.Mesh(new THREE.PlaneGeometry(180,180,48,48),material);water.rotation.x=-Math.PI/2;water.position.y=-.15;scene.add(water);
 }
