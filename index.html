@@ -1,64 +1,870 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-  <meta name="theme-color" content="#16283a">
-  <meta name="description" content="A tiny 2.5D voxel sandbox and browser strategy game.">
-  <title>Blockcraft 2.5D — Isles at War</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BLOCKCRAFT 2.5D — Isometric Minecraft</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#5ab8ff;font-family:'VT323',monospace}
+#game{position:fixed;inset:0}
+#game canvas{display:block}
+.hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;pointer-events:none;z-index:10}
+.hud .title{font-family:'Press Start 2P',monospace;font-size:13px;color:#fff;text-shadow:3px 3px 0 #2b1a0a,5px 5px 0 #000}
+.hud .hint{pointer-events:auto;font-family:'VT323',monospace;font-size:16px;background:rgba(22,33,62,0.9);border:2px solid #00f5ff;color:#00f5ff;padding:4px 10px;cursor:pointer}
+.hud .hint:hover{background:rgba(22,33,62,1)}
+.hotbar{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:10;background:rgba(0,0,0,0.38);padding:8px 10px;border:3px solid #000}
+.slot{width:46px;height:46px;background:#8b8b8b;border:3px solid #373737;border-top-color:#fff;border-left-color:#fff;position:relative;cursor:pointer;image-rendering:pixelated}
+.slot.sel{border-color:#ffde59;box-shadow:0 0 0 2px #000}
+.slot canvas{width:100%;height:100%;image-rendering:pixelated;display:block}
+.slot span{position:absolute;bottom:0;right:2px;font-family:'Press Start 2P',monospace;font-size:7px;color:#fff;text-shadow:1px 1px 0 #000}
+.crosshair{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:18px;height:18px;pointer-events:none;z-index:10}
+.crosshair:before,.crosshair:after{content:"";position:absolute;background:#fff;box-shadow:0 0 2px #000}
+.crosshair:before{left:8px;top:0;width:2px;height:18px}
+.crosshair:after{left:0;top:8px;width:18px;height:2px}
+.controls{position:fixed;bottom:14px;left:14px;z-index:10;background:rgba(22,33,62,0.9);border:2px solid #00f5ff;color:#cbd5e1;font-size:14px;line-height:1.35;padding:7px 10px;max-width:300px}
+.controls b{color:#ffde59}
+/* Main menu */
+#mainMenu{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at center, rgba(90,184,255,0.15) 0%, rgba(10,20,40,0.55) 100%);backdrop-filter:blur(1px)}
+#mainMenu.hidden{display:none}
+.menu-card{background:rgba(18,28,48,0.92);border:4px solid #00f5ff;box-shadow:0 0 0 4px #000, 0 8px 32px rgba(0,0,0,0.6), 0 0 24px rgba(0,245,255,0.25);padding:28px 28px 22px;min-width:380px;max-width:480px;text-align:center}
+.menu-card h1{font-family:'Press Start 2P',monospace;font-size:20px;color:#ffde59;text-shadow:4px 4px 0 #2b1a0a, 6px 6px 0 #000;letter-spacing:1px;line-height:1.3}
+.menu-card .sub{font-family:'VT323',monospace;font-size:18px;color:#8ec9ff;margin:8px 0 18px;letter-spacing:2px;text-transform:uppercase}
+.menu-btn{width:100%;display:block;font-family:'Press Start 2P',monospace;font-size:11px;padding:14px 12px;margin:10px 0;border:3px solid #000;cursor:pointer;transition:transform 0.06s, filter 0.12s;text-transform:uppercase;letter-spacing:0.5px}
+.menu-btn:active{transform:translateY(2px)}
+.btn-free{background:linear-gradient(#7ed321,#5a9a0a);color:#fff;text-shadow:2px 2px 0 #2b5a0a;box-shadow:inset 0 3px 0 rgba(255,255,255,0.4), inset 0 -3px 0 rgba(0,0,0,0.25)}
+.btn-free:hover{filter:brightness(1.12)}
+.btn-farm{background:linear-gradient(#ff8c2a,#d94a0a);color:#fff;text-shadow:2px 2px 0 #6b1f00;box-shadow:inset 0 3px 0 rgba(255,255,255,0.35), inset 0 -3px 0 rgba(0,0,0,0.25)}
+.btn-farm:hover{filter:brightness(1.12)}
+.menu-card small{color:#7a8db5;font-size:13px;margin-top:10px;display:block}
+.menu-badge{margin-top:12px;font-size:12px;color:#3a557a;background:rgba(0,0,0,0.35);padding:4px 8px;display:inline-block;border:1px solid rgba(0,245,255,0.3)}
+/* Hide game HUD when in menu */
+body.menu-mode .hud, body.menu-mode .hotbar, body.menu-mode .crosshair, body.menu-mode .controls, body.menu-mode #debug{display:none !important}
+</style>
 </head>
 <body class="menu-mode">
-  <main id="game" aria-label="Blockcraft 2.5D game canvas"></main>
-  <header class="topbar" aria-live="polite">
-    <button class="pixel-button icon-button" id="menuButton" aria-label="Open menu">☰</button>
-    <div class="brand"><span>BLOCKCRAFT</span><small>2.5D</small></div>
-    <div id="resourceHud" class="resources hidden"></div>
-    <div class="mode-label" id="modeLabel">ISLAND SANDBOX</div>
-  </header>
-  <section id="strategyPanel" class="strategy-panel hidden" aria-label="Strategy controls">
-    <div class="panel-title">WAR TABLE</div>
-    <button class="build-card" data-build="farm"><span class="build-icon">♣</span><b>GROVE</b><small>25 wood · income</small></button>
-    <button class="build-card" data-build="barracks"><span class="build-icon">⚔</span><b>BARRACKS</b><small>35 wood · 20 stone</small></button>
-    <button class="build-card" data-build="tower"><span class="build-icon">◆</span><b>TOWER</b><small>45 stone · defense</small></button>
-    <div class="panel-note" id="strategyHint">Choose a building, then click nearby ground. Right-click sets your army rally point.</div>
-  </section>
-  <section id="sandboxHud" class="hotbar hidden" aria-label="Block palette"></section>
-  <div id="crosshair" class="crosshair hidden" aria-hidden="true"></div>
-  <div id="toast" class="toast" role="status"></div>
-  <section id="menu" class="menu-shell">
-    <div class="menu-copy">
-      <div class="eyebrow">A TINY WORLD IN FOUR PIXELS</div>
-      <h1>BLOCKCRAFT<br><span>2.5D</span></h1>
-      <p>Shape floating islands or lead a faction across a living voxel battlefield.</p>
-      <div class="menu-actions">
-        <button class="pixel-button primary" id="playSandbox">EXPLORE ISLANDS <span>→</span></button>
-        <button class="pixel-button war" id="showFactions">STRATEGY MODE <span>⚔</span></button>
-      </div>
-      <div class="controls-line"><b>WASD</b> move · <b>Space</b> jump · <b>drag</b> orbit · <b>wheel</b> zoom</div>
-    </div>
-    <div id="factionPicker" class="faction-picker hidden">
-      <div class="picker-head"><button id="backToMenu" aria-label="Back">←</button><div><small>CHOOSE YOUR BANNER</small><h2>Three islands. One realm.</h2></div></div>
-      <div class="faction-grid">
-        <button class="faction forest" data-faction="forest"><span class="crest">♣</span><b>FORESTKIN</b><small>Fast growth · swift raiders</small></button>
-        <button class="faction mountain" data-faction="mountain"><span class="crest">◆</span><b>MOUNTAINFOLK</b><small>Strong walls · heavy guards</small></button>
-        <button class="faction sulfur" data-faction="sulfur"><span class="crest">✦</span><b>SULFURBORN</b><small>Rich mines · fierce attacks</small></button>
-      </div>
-    </div>
-  </section>
-  <section id="pause" class="pause hidden" aria-modal="true" role="dialog" aria-label="Pause menu">
-    <div class="pause-card"><small>MATCH PAUSED</small><h2>Take a breath.</h2><button class="pixel-button primary" id="resume">RESUME</button><button class="pixel-button" id="exitMenu">EXIT TO MENU</button></div>
-  </section>
-  <div class="mobile-controls hidden" id="mobileControls">
-    <div class="stick" id="moveStick"><i></i></div>
-    <button id="mobileJump" aria-label="Jump">↑</button>
+<div id="game"></div>
+<div class="hud">
+  <div class="title">BLOCKCRAFT 2.5D</div>
+  <div class="hint" id="btnBack">ESC — Menu • LMB break • RMB place • R reset</div>
+</div>
+<div class="crosshair"></div>
+<div class="controls"><b>WASD</b> move <b>Shift</b> sprint <b>Space</b> jump<br><b>1-7</b> select &nbsp;<b>R</b> reset &nbsp; Hold <b>MMB</b> to rotate</div>
+<div id="debug" style="position:fixed;top:46px;left:10px;z-index:10;background:rgba(0,0,0,0.65);color:#7fffaa;font:11px monospace;padding:6px 8px;border:1px solid #00f5ff;pointer-events:none;white-space:pre"></div>
+<div class="hotbar" id="hotbar"></div>
+
+<!-- Main Menu -->
+<div id="mainMenu">
+  <div class="menu-card">
+    <h1>BLOCKCRAFT<br>2.5D</h1>
+    <div class="sub">Isometric Minecraft</div>
+    <button class="menu-btn btn-free" id="btnFreeRun">▶ FREE RUN — Explore World</button>
+    <button class="menu-btn btn-farm" id="btnFarm">⚙ AUTOMATIC FARM — Furnaces & Fire</button>
+    <small>WASD move • Space jump • LMB break / RMB place • MMB rotate • Scroll zoom</small>
+    <div class="menu-badge">Floating island preview — camera orbits automatically</div>
   </div>
-  <script src="vendor/three.min.js"></script>
-  <script src="vendor/OrbitControls.js"></script>
-  <script src="voxv2-textures.js"></script>
-  <script src="game.js"></script>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script src="vendor/OrbitControls.js"></script>
+<script src="voxv2-textures.js"></script>
+<script>
+(function(){
+var WORLD=42, HEIGHT=11, ATLAS_COLS=12;
+var BLOCK={AIR:0,GRASS:1,DIRT:2,STONE:3,WOOD:4,LEAVES:5,SAND:6,PLANKS:7,SNOW:8,FURNACE:9};
+var TILE={grassTop:0,grassSide:1,dirt:2,stone:3,woodSide:4,woodTop:5,leaves:6,sand:7,planks:8,snow:9,furnaceSide:10,furnaceFront:11};
+
+function mk(w,h){var c=document.createElement('canvas');c.width=w;c.height=h;return c}
+function makeAtlas(){
+  var atlas=mk(ATLAS_COLS*16,16),g=atlas.getContext('2d');
+  g.imageSmoothingEnabled=false;
+  function rgba(hex,at){return [parseInt(hex.slice(at,at+2),16),parseInt(hex.slice(at+2,at+4),16),parseInt(hex.slice(at+4,at+6),16),parseInt(hex.slice(at+6,at+8),16)]}
+  function voxTile(tile,block,face){
+    var packed=window.VOXV2_PX4.faces[(block-1)*6+face];
+    for(var py=0;py<4;py++) for(var px=0;px<4;px++){
+      var c=rgba(packed,(py*4+px)*8);
+      g.fillStyle='rgba('+c[0]+','+c[1]+','+c[2]+','+(c[3]/255)+')';
+      g.fillRect(tile*16+px*4,py*4,4,4);
+    }
+  }
+  voxTile(TILE.grassTop,1,2);voxTile(TILE.grassSide,1,4);voxTile(TILE.dirt,2,2);
+  voxTile(TILE.stone,4,2);voxTile(TILE.woodSide,8,4);voxTile(TILE.woodTop,8,2);
+  voxTile(TILE.leaves,10,2);voxTile(TILE.sand,3,2);voxTile(TILE.planks,27,2);
+  voxTile(TILE.snow,5,2);voxTile(TILE.furnaceSide,18,4);voxTile(TILE.furnaceFront,20,4);
+  var tex=new THREE.CanvasTexture(atlas);
+  tex.magFilter=THREE.NearestFilter;tex.minFilter=THREE.NearestFilter;tex.encoding=THREE.sRGBEncoding;
+  return {atlas:atlas,tex:tex}
+}
+var atlasInfo=makeAtlas();
+var atlasTex=atlasInfo.tex;
+var atlasMat=new THREE.MeshLambertMaterial({map:atlasTex});
+atlasMat.side=THREE.DoubleSide;
+
+function tileFor(block, face){
+  if(block===BLOCK.GRASS){ if(face===2) return TILE.grassTop; if(face===3) return TILE.dirt; return TILE.grassSide; }
+  if(block===BLOCK.DIRT) return TILE.dirt;
+  if(block===BLOCK.STONE) return TILE.stone;
+  if(block===BLOCK.WOOD){ if(face===2||face===3) return TILE.woodTop; return TILE.woodSide; }
+  if(block===BLOCK.LEAVES) return TILE.leaves;
+  if(block===BLOCK.SAND) return TILE.sand;
+  if(block===BLOCK.PLANKS) return TILE.planks;
+  if(block===BLOCK.SNOW){ if(face===2) return TILE.snow; if(face===3) return TILE.dirt; return TILE.snow; }
+  if(block===BLOCK.FURNACE){ if(face===4) return TILE.furnaceFront; if(face===2||face===3) return TILE.furnaceSide; return TILE.furnaceSide; }
+  return 0;
+}
+
+var scene,camera,renderer,controls,raycaster,mouse, world, worldMesh, cloudGroup;
+var player, playerX, playerZ, playerY, velY=0, velX=0, velZ=0, coyote=0, jBuffer=0, jumpsLeft=2;
+var selected=1;
+var keys={}, sprint=false;
+var gameMode='menu'; // menu | free | farm
+var furnaceGroup=null, fireSprites=[], smokeSprites=[];
+var menuAngle=0.6;
+
+function init(){
+  var el=document.getElementById('game');
+  scene=new THREE.Scene();
+  scene.background=new THREE.Color(0x5ab8ff);
+  scene.fog=new THREE.Fog(0x8ec9ff, 55, 110);
+  var aspect=el.clientWidth/el.clientHeight;
+  var d=15;
+  camera=new THREE.OrthographicCamera(-d*aspect,d*aspect,d,-d,0.1,1000);
+  camera.position.set(28,28,28);
+  camera.lookAt(0,0,0);
+  renderer=new THREE.WebGLRenderer({antialias:false,powerPreference:'high-performance'});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.15));
+  renderer.setSize(el.clientWidth, el.clientHeight);
+  renderer.shadowMap.enabled=true;
+  renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  el.appendChild(renderer.domElement);
+  renderer.domElement.tabIndex=0;
+  renderer.domElement.focus();
+  el.addEventListener('click', function(){ if(gameMode!=='menu') renderer.domElement.focus(); });
+  controls=new THREE.OrbitControls(camera, renderer.domElement);
+  controls.target.set(0,0,0);
+  controls.enableDamping=true; controls.dampingFactor=0.12;
+  controls.enablePan=true;
+  controls.enableKeys=false;
+  controls.mouseButtons={LEFT:THREE.MOUSE.PAN, MIDDLE:THREE.MOUSE.ROTATE, RIGHT:THREE.MOUSE.DOLLY};
+  controls.minZoom=0.5; controls.maxZoom=2.6;
+  controls.maxPolarAngle=Math.PI/2 - 0.08;
+  controls.minPolarAngle=0.25;
+  var amb=new THREE.AmbientLight(0xffffff,0.72);
+  scene.add(amb);
+  var sun=new THREE.DirectionalLight(0xfff2b8,0.95);
+  sun.position.set(45,65,28);
+  sun.castShadow=true;
+  sun.shadow.mapSize.set(2048,2048);
+  sun.shadow.camera.near=0.5; sun.shadow.camera.far=120;
+  sun.shadow.camera.left=-45; sun.shadow.camera.right=45;
+  sun.shadow.camera.top=45; sun.shadow.camera.bottom=-45;
+  sun.shadow.bias=-0.0006;
+  scene.add(sun);
+  var fill=new THREE.DirectionalLight(0x8ec9ff,0.38);
+  fill.position.set(-30,25,-25);
+  scene.add(fill);
+  scene.add(new THREE.HemisphereLight(0xcde6ff,0x6b8a4a,0.45));
+  var rim=new THREE.DirectionalLight(0xffc07a,0.18);
+  rim.position.set(-12,18,40);
+  scene.add(rim);
+  var water=new THREE.Mesh(new THREE.PlaneGeometry(180,180), new THREE.MeshLambertMaterial({color:0x3a8fcc}));
+  water.rotation.x=-Math.PI/2; water.position.y=-0.15; scene.add(water);
+  world=createIslands();
+  buildClouds();
+  rebuildWorldMesh();
+  buildPlayer();
+  buildHotbar();
+  raycaster=new THREE.Raycaster(); mouse=new THREE.Vector2();
+  el.addEventListener('mousemove', onMouseMove);
+  el.addEventListener('pointerdown', onPointerDown);
+  window.addEventListener('keydown', onKeyDown);
+  document.addEventListener('keydown', onKeyDown);
+  function onKeyUp(e){ var k=e.key.toLowerCase(); var kc=e.code?e.code.toLowerCase():''; keys[k]=false; if(kc) keys[kc]=false; if(k===' '||kc==='space') keys[' '] = false; if(kc==='keyw') keys['w']=false; if(kc==='keya') keys['a']=false; if(kc==='keys') keys['s']=false; if(kc==='keyd') keys['d']=false; if(e.key==='Shift') sprint=false; }
+  window.addEventListener('keyup', onKeyUp);
+  document.addEventListener('keyup', onKeyUp);
+  window.addEventListener('contextmenu', function(e){e.preventDefault()});
+  window.addEventListener('resize', onResize);
+  new ResizeObserver(onResize).observe(el);
+  setupMenu();
+  updateMenuVisibility();
+  requestAnimationFrame(animate);
+}
+
+function createIslands(){
+  var w=[];
+  for(var x=0;x<WORLD;x++){w[x]=[]; for(var z=0;z<WORLD;z++){w[x][z]=[]; for(var y=0;y<HEIGHT;y++) w[x][z][y]=0}}
+  var islands=[
+    {cx:21,cz:21,rx:9,rz:8, base:3, h:3.2, biome:'forest'},
+    {cx:8, cz:8, rx:5,rz:5, base:3, h:2.5, biome:'snow'},
+    {cx:33,cz:33, rx:5,rz:5, base:3, h:2.6, biome:'desert'},
+    {cx:33,cz:8, rx:4,rz:4, base:3, h:2.0, biome:'forest'},
+    {cx:8, cz:33, rx:4,rz:4, base:3, h:2.3, biome:'desert'}
+  ];
+  islands.forEach(function(isl){
+    for(var x=Math.max(0,isl.cx-isl.rx-1); x<Math.min(WORLD,isl.cx+isl.rx+1); x++){
+      for(var z=Math.max(0,isl.cz-isl.rz-1); z<Math.min(WORLD,isl.cz+isl.rz+1); z++){
+        var dx=(x-isl.cx)/isl.rx, dz=(z-isl.cz)/isl.rz;
+        var d=Math.sqrt(dx*dx+dz*dz);
+        if(d>1) continue;
+        var h = Math.floor((1-d)*isl.h + isl.base);
+        var rnd=(Math.sin(x*1.7)+Math.cos(z*1.9))*0.35;
+        h+= (rnd>0.5?1:0);
+        if(h<isl.base) h=isl.base;
+        if(h>=HEIGHT) h=HEIGHT-1;
+        for(var y=0;y<h;y++){
+          if(isl.biome==='desert'){
+            if(y>=h-1) w[x][z][y]=BLOCK.SAND;
+            else if(y>=h-2) w[x][z][y]=BLOCK.SAND;
+            else if(y<2) w[x][z][y]=BLOCK.STONE;
+            else w[x][z][y]=BLOCK.SAND;
+          } else if(isl.biome==='snow'){
+            if(y===h-1) w[x][z][y]=BLOCK.SNOW;
+            else if(y===h-2) w[x][z][y]=BLOCK.SNOW;
+            else if(y<2) w[x][z][y]=BLOCK.STONE;
+            else w[x][z][y]=BLOCK.DIRT;
+          } else {
+            if(y===h-1) w[x][z][y]=BLOCK.GRASS;
+            else if(y>=h-2) w[x][z][y]=BLOCK.DIRT;
+            else if(y<2) w[x][z][y]=BLOCK.STONE;
+            else w[x][z][y]=BLOCK.DIRT;
+          }
+        }
+        if(isl.biome==='forest' && d<0.4 && h>3 && Math.random()<0.07){ w[x][z][h]=BLOCK.SAND; }
+      }
+    }
+  });
+  islands.forEach(function(isl){
+    var count = isl.biome==='desert'? 3 : 2;
+    for(var t=0;t<count;t++){
+      var tx=Math.floor(isl.cx + (Math.random()-0.5)*isl.rx*1.2);
+      var tz=Math.floor(isl.cz + (Math.random()-0.5)*isl.rz*1.2);
+      if(tx<1||tx>=WORLD-1||tz<1||tz>=WORLD-1) continue;
+      var top=-1; for(var y=HEIGHT-1;y>=0;y--) if(w[tx][tz][y]!==0){top=y;break}
+      if(top<0) continue;
+      if(isl.biome==='desert'){
+        if(w[tx][tz][top]!==BLOCK.SAND) continue;
+        var h2=2+Math.floor(Math.random()*2);
+        for(var y=1;y<=h2;y++) if(top+y<HEIGHT && w[tx][tz][top+y]===0) w[tx][tz][top+y]=BLOCK.WOOD;
+      } else {
+        if(w[tx][tz][top]!==BLOCK.GRASS && w[tx][tz][top]!==BLOCK.SNOW) continue;
+        var trunk=3+Math.floor(Math.random()*2);
+        for(var y=1;y<=trunk;y++) if(top+y<HEIGHT) w[tx][tz][top+y]=BLOCK.WOOD;
+        var ly=top+trunk;
+        for(var dx=-1;dx<=1;dx++) for(var dz=-1;dz<=1;dz++) for(var dy=0;dy<=1;dy++){
+          var nx=tx+dx,nz=tz+dz,ny=ly+dy; if(nx<0||nx>=WORLD||nz<0||nz>=WORLD||ny>=HEIGHT) continue;
+          if(dx===0&&dz===0&&dy===0) continue;
+          if(w[nx][nz][ny]===0) w[nx][nz][ny]=BLOCK.LEAVES;
+        }
+        if(ly+1<HEIGHT && w[tx][tz][ly+1]===0) w[tx][tz][ly+1]=BLOCK.LEAVES;
+        if(ly+2<HEIGHT && w[tx][tz][ly+2]===0) w[tx][tz][ly+2]=BLOCK.LEAVES;
+        if(isl.biome==='snow' && ly+1<HEIGHT) w[tx][tz][ly+1]=BLOCK.SNOW;
+      }
+    }
+  });
+  return w;
+}
+
+function createFarmSceneWorld(){
+  var w=createIslands();
+  // ensure center island top is flat for farm: flatten 9x9 around center
+  var cx=21, cz=21;
+  var topH= -1;
+  for(var y=HEIGHT-1;y>=0;y--) if(w[cx][cz][y]!==0){topH=y;break}
+  if(topH<3) topH=5;
+  // flatten area to farm plateau
+  for(var x=cx-4;x<=cx+4;x++) for(var z=cz-4;z<=cz+4;z++){
+    if(x<0||x>=WORLD||z<0||z>=WORLD) continue;
+    var h=topH;
+    // clear above
+    for(var y=h+1;y<HEIGHT;y++) w[x][z][y]=0;
+    // set top layers
+    for(var y=0;y<=h;y++){
+      if(y===h) w[x][z][y]=BLOCK.GRASS;
+      else if(y>=h-1) w[x][z][y]=BLOCK.DIRT;
+      else if(y<2) w[x][z][y]=BLOCK.STONE;
+      else if(w[x][z][y]===0) w[x][z][y]=BLOCK.DIRT;
+    }
+  }
+  // farm farmland: replace some grass with planks/dirt pattern + add furnace line
+  // create tilled farmland 5x4 using DIRT texture variation as farmland
+  for(var x=cx-3;x<=cx+1;x++) for(var z=cz-1;z<=cz+2;z++){
+    // make farm soil = dirt surrounded by wood plank border or water channel
+    w[x][z][topH]=BLOCK.DIRT;
+  }
+  // water channel
+  for(var x=cx-3;x<=cx+1;x++){ w[x][cz+3][topH]=BLOCK.SAND; } // decorative
+  // place furnaces along north edge facing south (+Z)
+  var furnaceY=topH+1;
+  var fxList=[cx-2,cx-1,cx];
+  fxList.forEach(function(fx){
+    var fz=cz-3;
+    if(furnaceY<HEIGHT) w[fx][fz][furnaceY]=BLOCK.FURNACE;
+    // chimney stone above furnace
+    if(furnaceY+1<HEIGHT) w[fx][fz][furnaceY+1]=BLOCK.STONE;
+    // planks chest nearby
+    if(w[fx+1] && w[fx+1][fz] && furnaceY<HEIGHT && w[fx+1][fz][furnaceY]===0) w[fx+1][fz][furnaceY]=BLOCK.PLANKS;
+  });
+  // add a small shed with planks
+  for(var x=cx+2;x<=cx+3;x++) for(var z=cz-3;z<=cz-1;z++){
+    w[x][z][furnaceY]=BLOCK.PLANKS;
+  }
+  for(var y=furnaceY+1; y<=furnaceY+2; y++){
+    if(y<HEIGHT){ w[cx+2][cz-2][y]=BLOCK.WOOD; w[cx+3][cz-2][y]=BLOCK.WOOD; }
+  }
+  return w;
+}
+
+function buildClouds(){
+  if(cloudGroup){ scene.remove(cloudGroup); }
+  cloudGroup=new THREE.Group();
+  var topMat=new THREE.MeshLambertMaterial({color:0xffffff, transparent:true, opacity:0.96});
+  var botMat=new THREE.MeshLambertMaterial({color:0xe6eef5, transparent:true, opacity:0.92});
+  for(var i=0;i<12;i++){
+    var g=new THREE.Group();
+    var cx=(Math.random()*50-25), cz=(Math.random()*50-25), cy=15+Math.random()*4;
+    var blocks=4+Math.floor(Math.random()*4);
+    for(var b=0;b<blocks;b++){
+      var bx=(Math.random()*5-2.5), bz=(Math.random()*3-1.5);
+      var sx=2.0+Math.random()*1.8, sz=1.4+Math.random()*1.3;
+      var m=new THREE.Mesh(new THREE.BoxGeometry(sx,0.85,sz), topMat);
+      m.position.set(bx, 0.25, bz);
+      m.castShadow=false; m.receiveShadow=false;
+      g.add(m);
+      var s=new THREE.Mesh(new THREE.BoxGeometry(sx*0.9,0.45,sz*0.9), botMat);
+      s.position.set(bx*0.98, -0.22, bz*0.98);
+      g.add(s);
+    }
+    var puff=new THREE.Mesh(new THREE.BoxGeometry(1.4,0.7,1.4), topMat);
+    puff.position.set((Math.random()-0.5)*1.2, 0.65, (Math.random()-0.5)*1.0);
+    g.add(puff);
+    g.position.set(cx,cy,cz);
+    g.rotation.y=Math.random()*0.6;
+    cloudGroup.add(g);
+  }
+  scene.add(cloudGroup);
+}
+
+function rebuildWorldMesh(){
+  if(worldMesh){ scene.remove(worldMesh); worldMesh.geometry.dispose(); }
+  var pos=[], nor=[], uv=[], idx=[];
+  var vCount=0;
+  function addFace(x,y,z, face, tile){
+    var cx=x - WORLD/2 + 0.5, cy=y+0.5, cz=z - WORLD/2 + 0.5;
+    var s=0.5; var verts, normal;
+    if(face===0){ verts=[[cx+s,cy-s,cz-s],[cx+s,cy-s,cz+s],[cx+s,cy+s,cz+s],[cx+s,cy+s,cz-s]]; normal=[1,0,0]; }
+    else if(face===1){ verts=[[cx-s,cy-s,cz+s],[cx-s,cy-s,cz-s],[cx-s,cy+s,cz-s],[cx-s,cy+s,cz+s]]; normal=[-1,0,0]; }
+    else if(face===2){ verts=[[cx-s,cy+s,cz+s],[cx+s,cy+s,cz+s],[cx+s,cy+s,cz-s],[cx-s,cy+s,cz-s]]; normal=[0,1,0]; }
+    else if(face===3){ verts=[[cx-s,cy-s,cz-s],[cx+s,cy-s,cz-s],[cx+s,cy-s,cz+s],[cx-s,cy-s,cz+s]]; normal=[0,-1,0]; }
+    else if(face===4){ verts=[[cx+s,cy-s,cz+s],[cx-s,cy-s,cz+s],[cx-s,cy+s,cz+s],[cx+s,cy+s,cz+s]]; normal=[0,0,1]; }
+    else { verts=[[cx-s,cy-s,cz-s],[cx+s,cy-s,cz-s],[cx+s,cy+s,cz-s],[cx-s,cy+s,cz-s]]; normal=[0,0,-1]; }
+    var tileX=tile/ATLAS_COLS, tileW=1/ATLAS_COLS;
+    var uvsFace=[[tileX,0],[tileX+tileW,0],[tileX+tileW,1],[tileX,1]];
+    for(var i=0;i<4;i++){ pos.push(verts[i][0],verts[i][1],verts[i][2]); nor.push(normal[0],normal[1],normal[2]); uv.push(uvsFace[i][0],uvsFace[i][1]); }
+    idx.push(vCount, vCount+1, vCount+2, vCount, vCount+2, vCount+3); vCount+=4;
+  }
+  for(var x=0;x<WORLD;x++) for(var z=0;z<WORLD;z++) for(var y=0;y<HEIGHT;y++){
+    var id=world[x][z][y]; if(id===0) continue;
+    var neigh=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+    for(var f=0;f<6;f++){
+      var nx=x+neigh[f][0], ny=y+neigh[f][1], nz=z+neigh[f][2];
+      var nid=0; if(nx>=0&&nx<WORLD&&nz>=0&&nz<WORLD&&ny>=0&&ny<HEIGHT) nid=world[nx][nz][ny];
+      if(nid!==0) continue;
+      var tile=tileFor(id,f);
+      addFace(x,y,z,f,tile);
+    }
+  }
+  var geo=new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor,3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv,2));
+  geo.setIndex(idx);
+  geo.computeBoundingSphere();
+  worldMesh=new THREE.Mesh(geo, atlasMat);
+  worldMesh.castShadow=true;
+  worldMesh.receiveShadow=true;
+  scene.add(worldMesh);
+}
+
+function highestAt(x,z){
+  for(var y=HEIGHT-1;y>=0;y--) if(world[x][z][y]!==0) return y;
+  return -1;
+}
+
+var playerTargetY=0;
+function buildPlayer(){
+  if(player){ scene.remove(player); }
+  player=new THREE.Group();
+  var skin=new THREE.MeshLambertMaterial({color:0xffd3a0});
+  var shirt=new THREE.MeshLambertMaterial({color:0x3a8de0});
+  var pants=new THREE.MeshLambertMaterial({color:0x2b4a8a});
+  var hair=new THREE.MeshLambertMaterial({color:0x5a2f10});
+  var head=new THREE.Mesh(new THREE.BoxGeometry(0.48,0.48,0.48), skin); head.position.y=1.42;
+  var hairBox=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.17,0.5), hair); hairBox.position.y=1.61;
+  var body=new THREE.Mesh(new THREE.BoxGeometry(0.52,0.62,0.26), shirt); body.position.y=0.84;
+  var armL=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.5,0.16), skin); armL.position.set(-0.34,0.84,0);
+  var armR=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.5,0.16), skin); armR.position.set(0.34,0.84,0);
+  var legL=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.55,0.2), pants); legL.position.set(-0.13,0.275,0);
+  var legR=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.55,0.2), pants); legR.position.set(0.13,0.275,0);
+  player.userData={armL:armL,armR:armR,legL:legL,legR:legR,head:head};
+  player.add(head); player.add(hairBox); player.add(body); player.add(armL); player.add(armR); player.add(legL); player.add(legR);
+  player.traverse(function(o){ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; }});
+  scene.add(player); window.player=player; window.world=world; window.highestAt=highestAt; window.WORLD=WORLD;
+  window.setPlayerPos=function(x,z){ playerX=x; playerZ=z; var h=highestAt(x,z); player.position.set(x - WORLD/2 +0.5, h>=0?h+1.01:0.51, z - WORLD/2 +0.5); velY=0; velX=0; velZ=0; controls.target.set(player.position.x, player.position.y+0.35, player.position.z); };
+  window.getPlayerPos=function(){ return {x:playerX, z:playerZ}; };
+  playerX=Math.floor(WORLD/2); playerZ=Math.floor(WORLD/2);
+  var h=highestAt(playerX,playerZ); playerY= h>=0? h+1.01 : 0.51;
+  player.position.set(playerX - WORLD/2 +0.5, playerY, playerZ - WORLD/2 +0.5);
+  playerTargetY=playerY;
+  controls.target.set(player.position.x, player.position.y+0.3, player.position.z);
+  player.visible=false;
+}
+
+function buildHotbar(){
+  var bar=document.getElementById('hotbar'); bar.innerHTML='';
+  for(var i=1;i<=8;i++){
+    var slot=document.createElement('div'); slot.className='slot'+(i===selected?' sel':'');
+    var cv=document.createElement('canvas'); cv.width=32; cv.height=32; var g=cv.getContext('2d'); g.imageSmoothingEnabled=false;
+    var tile=tileFor(i,2);
+    if(tile!==undefined){
+      var sx=tile*16; g.drawImage(atlasInfo.atlas, sx,0,16,16, 0,0,32,32);
+    }
+    slot.appendChild(cv);
+    var lab=document.createElement('span'); lab.textContent=i; slot.appendChild(lab);
+    (function(idx){ slot.addEventListener('click', function(){ setSelected(idx); }); })(i);
+    bar.appendChild(slot);
+  }
+  // add furnace to hotbar as 9 if needed
+  var slotF=document.createElement('div'); slotF.className='slot'+(9===selected?' sel':'');
+  var cvF=document.createElement('canvas'); cvF.width=32; cvF.height=32; var gF=cvF.getContext('2d'); gF.imageSmoothingEnabled=false;
+  var tF=tileFor(BLOCK.FURNACE,4); gF.drawImage(atlasInfo.atlas, tF*16,0,16,16, 0,0,32,32);
+  slotF.appendChild(cvF); var labF=document.createElement('span'); labF.textContent='9'; slotF.appendChild(labF);
+  (function(){ slotF.addEventListener('click', function(){ setSelected(9); }); })();
+  bar.appendChild(slotF);
+}
+function setSelected(n){ selected=n; if(selected<1) selected=9; if(selected>9) selected=1; document.querySelectorAll('.slot').forEach(function(s,i){ s.classList.toggle('sel', i+1===selected)}); }
+
+function onKeyDown(e){
+  var k=e.key.toLowerCase();
+  var kc=e.code?e.code.toLowerCase():'';
+  if(k==='escape'){ if(gameMode!=='menu') showMenu(); return; }
+  if(gameMode==='menu') return;
+  if(k>='1'&&k<='9'){ var num=parseInt(k); if(num>=1&&num<=9) setSelected(num); }
+  if(k==='r'){ resetWorld(); }
+  if(e.key==='Shift') sprint=true;
+  keys[k]=true;
+  if(kc) keys[kc]=true;
+  if(kc==='space' || k===' ') keys[' '] = true;
+  if(kc==='keyw') keys['w']=true;
+  if(kc==='keya') keys['a']=true;
+  if(kc==='keys') keys['s']=true;
+  if(kc==='keyd') keys['d']=true;
+  if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright',' ','keyw','keya','keys','keyd','space'].indexOf(k)>=0 || ['keyw','keya','keys','keyd','space'].indexOf(kc)>=0) e.preventDefault();
+}
+
+var mouseDownPos=null, isDragging=false;
+function onMouseMove(e){
+  var r=renderer.domElement.getBoundingClientRect();
+  mouse.x=((e.clientX - r.left)/r.width)*2-1; mouse.y=-((e.clientY - r.top)/r.height)*2+1;
+  if(mouseDownPos && Math.hypot(e.clientX-mouseDownPos.x, e.clientY-mouseDownPos.y)>7) isDragging=true;
+}
+function onPointerDown(e){
+  if(gameMode==='menu') return;
+  mouseDownPos={x:e.clientX,y:e.clientY}; isDragging=false;
+  var up=function(ev){
+    window.removeEventListener('pointerup', up);
+    if(isDragging) return;
+    if(ev.button===0) doBreak();
+    if(ev.button===2) doPlace();
+  };
+  window.addEventListener('pointerup', up);
+}
+function doBreak(){
+  raycaster.setFromCamera(mouse, camera);
+  var hits=raycaster.intersectObject(worldMesh);
+  if(!hits.length) return;
+  var p=hits[0].point.clone().sub(hits[0].face.normal.clone().multiplyScalar(0.05));
+  var bx=Math.floor(p.x + WORLD/2), by=Math.floor(p.y), bz=Math.floor(p.z + WORLD/2);
+  if(bx<0||bx>=WORLD||bz<0||bz>=WORLD||by<0||by>=HEIGHT) return;
+  if(world[bx][bz][by]===0) return;
+  if(bx===playerX && bz===playerZ && by===highestAt(playerX,playerZ)) return;
+  world[bx][bz][by]=0;
+  rebuildWorldMesh();
+  if(gameMode==='farm') refreshFurnaceEffects();
+}
+function doPlace(){
+  raycaster.setFromCamera(mouse, camera);
+  var hits=raycaster.intersectObject(worldMesh);
+  if(!hits.length) return;
+  var h=hits[0];
+  var n=h.face.normal.clone();
+  var p=h.point.clone().add(n.clone().multiplyScalar(0.05));
+  var bx=Math.floor(p.x + WORLD/2), by=Math.floor(p.y), bz=Math.floor(p.z + WORLD/2);
+  if(bx<0||bx>=WORLD||bz<0||bz>=WORLD||by<0||by>=HEIGHT) return;
+  if(world[bx][bz][by]!==0) return;
+  if(bx===playerX && bz===playerZ && by===Math.floor(playerY)) return;
+  world[bx][bz][by]=selected;
+  rebuildWorldMesh();
+  if(gameMode==='farm') refreshFurnaceEffects();
+}
+
+// Menu & Mode logic
+function setupMenu(){
+  document.getElementById('btnFreeRun').addEventListener('click', enterFreeRun);
+  document.getElementById('btnFarm').addEventListener('click', enterFarm);
+  document.getElementById('btnBack').addEventListener('click', function(){ showMenu(); });
+}
+function updateMenuVisibility(){
+  var menu=document.getElementById('mainMenu');
+  if(gameMode==='menu'){
+    menu.classList.remove('hidden');
+    document.body.classList.add('menu-mode');
+    if(player) player.visible=false;
+    controls.enabled=true;
+    controls.enablePan=false;
+  } else {
+    menu.classList.add('hidden');
+    document.body.classList.remove('menu-mode');
+    if(player) player.visible=true;
+    controls.enabled=true;
+    controls.enablePan=true;
+    renderer.domElement.focus();
+  }
+}
+function showMenu(){
+  gameMode='menu';
+  // keep farm furnaces visible in menu if we came from farm? rebuild to plain for menu clean look
+  // reset to islands for menu background
+  world=createIslands();
+  rebuildWorldMesh();
+  clearFurnaceEffects();
+  buildPlayer();
+  player.visible=false;
+  controls.target.set(0,1.2,0);
+  menuAngle=Math.atan2(camera.position.x, camera.position.z);
+  updateMenuVisibility();
+}
+function enterFreeRun(){
+  gameMode='free';
+  world=createIslands();
+  rebuildWorldMesh();
+  clearFurnaceEffects();
+  buildPlayer();
+  player.visible=true;
+  var h=highestAt(playerX,playerZ);
+  player.position.set(playerX - WORLD/2 +0.5, h>=0?h+1.01:0.51, playerZ - WORLD/2 +0.5);
+  controls.target.set(player.position.x, player.position.y+0.35, player.position.z);
+  camera.position.set(player.position.x+18, 22, player.position.z+18);
+  buildHotbar();
+  setSelected(1);
+  updateMenuVisibility();
+}
+function enterFarm(){
+  gameMode='farm';
+  world=createFarmSceneWorld();
+  rebuildWorldMesh();
+  clearFurnaceEffects();
+  buildPlayer();
+  // spawn near farm
+  playerX=21; playerZ=21;
+  var h=highestAt(playerX,playerZ);
+  player.position.set(playerX - WORLD/2 +0.5, h>=0?h+1.01:0.51, playerZ - WORLD/2 +0.5);
+  controls.target.set(player.position.x, player.position.y+0.35, player.position.z);
+  camera.position.set(player.position.x+16, 18, player.position.z+16);
+  buildFurnaceEffects();
+  player.visible=true;
+  buildHotbar();
+  setSelected(9);
+  updateMenuVisibility();
+}
+function resetWorld(){
+  if(gameMode==='farm'){
+    world=createFarmSceneWorld();
+    rebuildWorldMesh();
+    clearFurnaceEffects();
+    buildFurnaceEffects();
+    playerX=21; playerZ=21;
+    var h=highestAt(playerX,playerZ);
+    player.position.set(playerX - WORLD/2 +0.5, h>=0?h+1.01:0.51, playerZ - WORLD/2 +0.5);
+    velY=0; velX=0; velZ=0;
+    controls.target.set(player.position.x, player.position.y+0.3, player.position.z);
+  } else if(gameMode==='free'){
+    world=createIslands();
+    rebuildWorldMesh();
+    playerX=Math.floor(WORLD/2); playerZ=Math.floor(WORLD/2);
+    var h2=highestAt(playerX,playerZ);
+    player.position.set(playerX - WORLD/2 +0.5, h2>=0?h2+1.01:0.51, playerZ - WORLD/2 +0.5);
+    velY=0;
+  }
+}
+
+// Furnace fire & smoke
+function clearFurnaceEffects(){
+  if(furnaceGroup){ scene.remove(furnaceGroup); furnaceGroup=null; }
+  fireSprites=[]; smokeSprites=[];
+}
+function refreshFurnaceEffects(){
+  // rebuild only if farm mode (to pick up placed/removed furnaces)
+  if(gameMode!=='farm') return;
+  clearFurnaceEffects();
+  buildFurnaceEffects();
+}
+function buildFurnaceEffects(){
+  furnaceGroup=new THREE.Group();
+  scene.add(furnaceGroup);
+  // scan world for FURNACE blocks
+  for(var x=0;x<WORLD;x++) for(var z=0;z<WORLD;z++) for(var y=0;y<HEIGHT;y++){
+    if(world[x][z][y]===BLOCK.FURNACE){
+      var wx=x - WORLD/2 +0.5, wy=y+0.5, wz=z - WORLD/2 +0.5;
+      // fire plane in front (+Z)
+      var fireCanvas=mk(32,32);
+      var fireTex=new THREE.CanvasTexture(fireCanvas);
+      fireTex.magFilter=THREE.NearestFilter; fireTex.minFilter=THREE.NearestFilter;
+      var fireMat=new THREE.MeshBasicMaterial({map:fireTex, transparent:true, side:THREE.DoubleSide, depthWrite:false});
+      // two crossed planes for volume
+      var g=new THREE.Group();
+      var p1=new THREE.Mesh(new THREE.PlaneGeometry(0.55,0.65), fireMat);
+      p1.position.set(0,0,0.52); // just in front of block face
+      var p2=new THREE.Mesh(new THREE.PlaneGeometry(0.55,0.65), fireMat.clone());
+      p2.rotation.y=Math.PI/2; p2.position.set(0,0,0.52);
+      // keep refs for animation
+      g.add(p1); g.add(p2);
+      g.position.set(wx, wy, wz);
+      g.userData={canvas:fireCanvas, tex:fireTex, mats:[fireMat, p2.material], baseY:wy, seed:Math.random()*10, wx:wx, wz:wz, wy:wy};
+      furnaceGroup.add(g);
+      fireSprites.push(g);
+      // smoke puff above chimney (stone above furnace)
+      var smokeCanvas=mk(16,16);
+      var smokeTex=new THREE.CanvasTexture(smokeCanvas);
+      smokeTex.magFilter=THREE.NearestFilter;
+      var smokeMat=new THREE.SpriteMaterial({map:smokeTex, transparent:true, opacity:0.75, depthWrite:false});
+      var smoke=new THREE.Sprite(smokeMat);
+      smoke.position.set(wx, wy+1.45, wz);
+      smoke.scale.set(1.1,1.1,1.1);
+      smoke.userData={canvas:smokeCanvas, tex:smokeTex, t:Math.random()*5};
+      furnaceGroup.add(smoke);
+      smokeSprites.push(smoke);
+      // point light flicker
+      var light=new THREE.PointLight(0xff7a18, 1.6, 7);
+      light.position.set(wx, wy+0.2, wz+0.7);
+      light.userData={base:1.6, seed:Math.random()*6};
+      furnaceGroup.add(light);
+      g.userData.light=light;
+    }
+  }
+  // if no furnace found (edge), still add decor furnaces fallback near center for visuals
+  if(fireSprites.length===0){
+    // fallback handled by world gen, but nothing to do
+  }
+}
+function drawFireFrame(canvas, t, seed){
+  var g=canvas.getContext('2d');
+  g.clearRect(0,0,32,32);
+  // background transparent
+  // flame shape with flicker
+  var flick = Math.sin(t*8 + seed)*1.2 + Math.sin(t*13+seed*1.3)*0.7;
+  g.fillStyle='#2a1400';
+  // outer flame
+  g.beginPath();
+  g.moveTo(16+flick*0.2, 28);
+  g.quadraticCurveTo(6+ flick, 18, 10, 8+flick*0.3);
+  g.quadraticCurveTo(16, 14+flick*0.5, 22, 8);
+  g.quadraticCurveTo(26 - flick, 18, 16+flick*0.2, 28);
+  g.closePath();
+  g.fillStyle='#ff4a00'; g.fill();
+  // inner
+  g.beginPath();
+  g.moveTo(16, 26);
+  g.quadraticCurveTo(11, 18, 13, 10);
+  g.quadraticCurveTo(16, 16, 19, 10);
+  g.quadraticCurveTo(21, 18, 16, 26);
+  g.closePath();
+  g.fillStyle='#ff8c1a'; g.fill();
+  // core
+  g.beginPath();
+  g.ellipse(16+flick*0.15, 20, 3.5, 5, 0, 0, Math.PI*2);
+  g.fillStyle='#ffde59'; g.fill();
+  g.fillStyle='#ffffff';
+  g.fillRect(15,17,2,3);
+  g.imageSmoothingEnabled=false;
+}
+function drawSmokeFrame(canvas, t){
+  var g=canvas.getContext('2d');
+  g.clearRect(0,0,16,16);
+  var a = (Math.sin(t*1.7)*0.1+0.6);
+  g.fillStyle='rgba(220,220,220,'+a+')';
+  // puffs
+  var y1 = 10 - (t % 1.0)*6;
+  var x1 = 8 + Math.sin(t*2)*1.2;
+  g.beginPath(); g.arc(x1, y1, 3.5, 0, Math.PI*2); g.fill();
+  g.beginPath(); g.arc(x1+1, y1-3, 2.5, 0, Math.PI*2); g.fillStyle='rgba(200,200,200,'+(a*0.6)+')'; g.fill();
+  g.beginPath(); g.arc(x1-1, y1-5, 1.8, 0, Math.PI*2); g.fillStyle='rgba(180,180,180,'+(a*0.35)+')'; g.fill();
+}
+
+var lastTime=performance.now();
+var walkTime=0;
+function animate(){
+  requestAnimationFrame(animate);
+  var now=performance.now(), dt=Math.min((now-lastTime)/1000,0.05); lastTime=now;
+  if(gameMode==='menu'){
+    menuAngle += dt*0.28;
+    var r=32;
+    var cx=0, cz=0, cy=4.5;
+    camera.position.x = Math.cos(menuAngle)*r;
+    camera.position.z = Math.sin(menuAngle)*r;
+    camera.position.y = 22 + Math.sin(now*0.0005)*1.5;
+    controls.target.set(cx + Math.cos(menuAngle+0.35)*1.2, cy, cz + Math.sin(menuAngle+0.35)*1.2);
+    controls.update();
+    if(cloudGroup){ cloudGroup.children.forEach(function(c,i){ c.position.x += Math.sin(now*0.00012 + i)*0.003; c.position.z += Math.cos(now*0.00009 + i)*0.001; }); }
+    // animate any farm fires visible in menu? not needed
+    if(furnaceGroup){
+      var t=now*0.001;
+      fireSprites.forEach(function(g){
+        drawFireFrame(g.userData.canvas, t, g.userData.seed);
+        g.userData.tex.needsUpdate=true;
+        var sc=1+Math.sin(t*7+g.userData.seed)*0.06;
+        g.scale.set(sc,sc,sc);
+        if(g.userData.light){ g.userData.light.intensity = g.userData.light.userData.base + Math.sin(t*9+g.userData.seed)*0.5 + Math.random()*0.22; }
+      });
+      smokeSprites.forEach(function(s){
+        s.userData.t += dt*0.9;
+        if(s.userData.t>1) s.userData.t-=1;
+        drawSmokeFrame(s.userData.canvas, s.userData.t);
+        s.userData.tex.needsUpdate=true;
+        s.position.y += dt*0.12;
+        if(s.position.y> s.userData.baseY+2.5) s.position.y = s.userData.baseY+1.2;
+        s.material.opacity=0.55*(1-s.userData.t*0.6);
+      });
+    }
+    // gentle player bob if visible (menu hides player)
+    renderer.render(scene,camera);
+    var dbg=document.getElementById('debug');
+    if(dbg) dbg.textContent='MENU — orbiting island | Click FREE RUN or FARM';
+    return;
+  }
+  var mvX=0,mvZ=0;
+  if(keys['w']||keys['arrowup']||keys['keyw']) mvZ-=1;
+  if(keys['s']||keys['arrowdown']||keys['keys']) mvZ+=1;
+  if(keys['a']||keys['arrowleft']||keys['keya']) mvX-=1;
+  if(keys['d']||keys['arrowright']||keys['keyd']) mvX+=1;
+  var moving = mvX!==0||mvZ!==0;
+  var targetVX=0, targetVZ=0;
+  var yaw = Math.atan2(camera.position.x - controls.target.x, camera.position.z - controls.target.z);
+  var s=Math.sin(yaw), c=Math.cos(yaw);
+  if(moving){
+    var len=Math.hypot(mvX,mvZ); mvX/=len; mvZ/=len;
+    var worldDx = mvX*c + mvZ*s;
+    var worldDz = -mvX*s + mvZ*c;
+    var curSpeed = sprint? 7.4 : 4.2;
+    targetVX = worldDx*curSpeed;
+    targetVZ = worldDz*curSpeed;
+    var targetYaw=Math.atan2(worldDx, worldDz);
+    var dy=targetYaw - player.rotation.y;
+    while(dy>Math.PI) dy-=Math.PI*2;
+    while(dy<-Math.PI) dy+=Math.PI*2;
+    player.rotation.y += dy*0.16;
+  }
+  velX += (targetVX - velX)*0.24;
+  velZ += (targetVZ - velZ)*0.24;
+  if(!moving){ velX*=0.82; velZ*=0.82; if(Math.abs(velX)<0.02) velX=0; if(Math.abs(velZ)<0.02) velZ=0; }
+  var curH0 = highestAt(playerX,playerZ);
+  var curGroundY0 = curH0>=0? curH0+1.01 : 0.51;
+  var onGround0 = Math.abs(player.position.y - curGroundY0) <0.16 && Math.abs(velY) <0.4;
+  if(onGround0){ coyote=0.16; jumpsLeft=2; } else coyote-=dt;
+  if(keys[' ']||keys['space']) jBuffer=0.16; else jBuffer-=dt;
+  if(jBuffer>0 && jumpsLeft>0){
+    var canJumpNow = onGround0 || coyote>0 || jumpsLeft===1;
+    if(canJumpNow){
+      velY=7.0;
+      jBuffer=0;
+      jumpsLeft--;
+      coyote=0;
+      if(moving){ velX+=targetVX*0.14; velZ+=targetVZ*0.14; }
+    }
+  }
+  if(Math.abs(velX)>0.01 || Math.abs(velZ)>0.01){
+    var nx=player.position.x + velX*dt;
+    var nz=player.position.z + velZ*dt;
+    var bx=Math.floor(nx + WORLD/2), bz=Math.floor(nz + WORLD/2);
+    if(bx>=0&&bx<WORLD&&bz>=0&&bz<WORLD){
+      var curH=highestAt(playerX,playerZ);
+      var nxtH=highestAt(bx,bz);
+      var canStep=false;
+      if(!onGround0) canStep=true;
+      else {
+        if(nxtH===-1) canStep=true;
+        else if(nxtH===curH) canStep=true;
+        else if(nxtH===curH+1 && (keys[' ']||keys['space'])) canStep=true;
+        else canStep=false;
+      }
+      if(canStep){
+        player.position.x=nx; player.position.z=nz;
+        playerX=bx; playerZ=bz;
+      } else { velX*=0.18; velZ*=0.18; }
+    } else { player.position.x=nx; player.position.z=nz; }
+  }
+  velY -= 16*dt;
+  player.position.y += velY*dt;
+  var ground=highestAt(playerX,playerZ);
+  var groundY= ground>=0? ground+1.01 : 0.51;
+  if(player.position.y <= groundY){ player.position.y=groundY; velY=0; }
+  playerTargetY=groundY;
+  if(moving){
+    walkTime+=dt*9;
+    var s2=Math.sin(walkTime)*0.6;
+    var bob=Math.abs(Math.sin(walkTime))*0.04;
+    if(player.userData){
+      player.userData.legL.rotation.x=s2; player.userData.legR.rotation.x=-s2;
+      player.userData.armL.rotation.x=-s2*0.9; player.userData.armR.rotation.x=s2*0.9;
+    }
+    player.position.y+=bob*0.5;
+  } else {
+    walkTime*=0.92;
+    if(player.userData){
+      player.userData.legL.rotation.x*=0.85; player.userData.legR.rotation.x*=0.85;
+      player.userData.armL.rotation.x*=0.85; player.userData.armR.rotation.x*=0.85;
+    }
+  }
+  controls.target.x += (player.position.x - controls.target.x)*0.18;
+  controls.target.z += (player.position.z - controls.target.z)*0.18;
+  controls.target.y += (player.position.y +0.35 - controls.target.y)*0.18;
+  if(cloudGroup){ cloudGroup.children.forEach(function(c,i){ c.position.x += Math.sin(now*0.00012 + i)*0.003; c.position.z += Math.cos(now*0.00009 + i)*0.001; }); }
+  // fire + smoke anim
+  if(furnaceGroup && gameMode==='farm'){
+    var t=now*0.001;
+    fireSprites.forEach(function(g){
+      drawFireFrame(g.userData.canvas, t, g.userData.seed);
+      g.userData.tex.needsUpdate=true;
+      var sc=1+Math.sin(t*7+g.userData.seed)*0.06;
+      g.children[0].scale.set(sc,sc,1); g.children[1].scale.set(sc,sc,1);
+      // billboard to camera a bit? keep crossed so no need
+      if(g.userData.light){ g.userData.light.intensity = g.userData.light.userData.base + Math.sin(t*9+g.userData.seed)*0.5 + Math.random()*0.22; }
+    });
+    smokeSprites.forEach(function(s){
+      s.userData.t += dt*0.55;
+      if(s.userData.t>1) s.userData.t=0;
+      drawSmokeFrame(s.userData.canvas, s.userData.t);
+      s.material.map.needsUpdate=true;
+      s.position.y += dt*0.35;
+      // drift
+      s.position.x += Math.sin(t*0.8+s.userData.t)*0.002;
+    });
+  }
+  controls.update();
+  var dbg=document.getElementById('debug');
+  if(dbg){ var fps=Math.round(1/dt); dbg.textContent='POS '+playerX+','+playerZ+' Y'+player.position.y.toFixed(2)+'  VY'+velY.toFixed(1)+' | KEYS '+(keys['w']?'W':'-')+(keys['a']?'A':'-')+(keys['s']?'S':'-')+(keys['d']?'D':'-')+(keys[' ']?' JUMP':'')+(sprint?' SPRINT':'')+' | MODE '+gameMode.toUpperCase()+' | FPS '+fps+' | ESC menu'; dbg.style.color = (keys['w']||keys['a']||keys['s']||keys['d'])?'#ffde59':'#7fffaa'; }
+  renderer.render(scene,camera);
+}
+function onResize(){
+  var el=document.getElementById('game');
+  var aspect=el.clientWidth/el.clientHeight;
+  var d=15 / camera.zoom;
+  camera.left=-d*aspect; camera.right=d*aspect; camera.top=d; camera.bottom=-d;
+  camera.updateProjectionMatrix();
+  renderer.setSize(el.clientWidth, el.clientHeight);
+}
+init();
+})();
+</script>
 </body>
 </html>
