@@ -69,24 +69,28 @@ body.menu-mode .hud, body.menu-mode .hotbar, body.menu-mode .crosshair, body.men
 
 <script src="vendor/three.min.js"></script>
 <script src="vendor/OrbitControls.js"></script>
-<script src="voxv2-textures-16.js"></script>
+<script src="voxv2-terrain-4.js"></script>
 <script>
 (function(){
-var WORLD=42, HEIGHT=11, ATLAS_COLS=window.VOXV2_PX16?50:12;
+var WORLD=42, HEIGHT=11, ATLAS_COLS=12;
 var BLOCK={AIR:0,GRASS:1,DIRT:2,STONE:3,WOOD:4,LEAVES:5,SAND:6,PLANKS:7,SNOW:8,FURNACE:9};
 var TILE={grassTop:0,grassSide:1,dirt:2,stone:3,woodSide:4,woodTop:5,leaves:6,sand:7,planks:8,snow:9,furnaceSide:10,furnaceFront:11};
 
 function mk(w,h){var c=document.createElement('canvas');c.width=w;c.height=h;return c}
+// Terrain tiles retain their native 4x4 texels; furnace artwork is 16x16.
+function tileRect(tile){
+  if(window.VOXV2_TERRAIN4)return tile<48?{x:tile*4,y:0,size:4}:{x:192+(tile-48)*16,y:0,size:16};
+  return {x:tile*16,y:0,size:16};
+}
 function makeAtlas(){
-  var atlas=mk(ATLAS_COLS*16,16), g=atlas.getContext('2d');
-  if(window.VOXV2_PX16){
+  var atlas=mk(window.VOXV2_TERRAIN4?224:ATLAS_COLS*16,16), g=atlas.getContext('2d');
+  if(window.VOXV2_TERRAIN4){
     g.imageSmoothingEnabled=false;
-    window.VOXV2_PX16.faces.slice(0,48).forEach(function(packed,tile){
-      for(var y=0;y<16;y++) for(var x=0;x<16;x++){
-        var at=(y*16+x)*8;
+    window.VOXV2_TERRAIN4.faces.slice(0,48).forEach(function(packed,tile){
+      for(var y=0;y<4;y++) for(var x=0;x<4;x++){
+        var at=(y*4+x)*8;
         var r=parseInt(packed.slice(at,at+2),16),gg=parseInt(packed.slice(at+2,at+4),16),b=parseInt(packed.slice(at+4,at+6),16),a=parseInt(packed.slice(at+6,at+8),16);
-        if(a>0){var grain=((x*17+y*31+tile*13+x*y*3)%13)-6,amount=Math.floor(grain*(tile>=24&&tile<30?.8:1.35));r=Math.max(0,Math.min(255,r+amount));gg=Math.max(0,Math.min(255,gg+amount));b=Math.max(0,Math.min(255,b+amount));}
-        g.fillStyle='rgba('+r+','+gg+','+b+','+(a/255)+')';g.fillRect(tile*16+x,y,1,1);
+        g.fillStyle='rgba('+r+','+gg+','+b+','+(a/255)+')';g.fillRect(tile*4+x,y,1,1);
       }
     });
     function furnaceTile(tile,front){
@@ -94,7 +98,7 @@ function makeAtlas(){
       for(var py=1;py<15;py+=4)for(var px=1;px<15;px+=5){fg.fillStyle=(px+py)%3?'#656b6f':'#a4a8aa';fg.fillRect(px,py,3,2);}
       fg.fillStyle='#4c5053';fg.fillRect(0,0,16,1);fg.fillRect(0,15,16,1);fg.fillRect(0,0,1,16);fg.fillRect(15,0,1,16);
       if(front){fg.fillStyle='#202225';fg.fillRect(3,5,10,8);fg.fillStyle='#101214';fg.fillRect(4,6,8,6);fg.fillStyle='#ff5a0a';fg.fillRect(5,8,6,3);fg.fillStyle='#ffc928';fg.fillRect(6,9,4,2);}
-      g.drawImage(c,tile*16,0);
+      g.drawImage(c,tileRect(tile).x,0);
     }
     furnaceTile(48,false);furnaceTile(49,true);
     var voxTex=new THREE.CanvasTexture(atlas);
@@ -186,7 +190,7 @@ var atlasMat=new THREE.MeshLambertMaterial({map:atlasTex,vertexColors:true,alpha
 atlasMat.side=THREE.DoubleSide;
 
 function tileFor(block, face){
-  if(window.VOXV2_PX16){if(block>=1&&block<=8)return(block-1)*6+face;if(block===BLOCK.FURNACE)return face===4?49:48;}
+  if(window.VOXV2_TERRAIN4){if(block>=1&&block<=8)return(block-1)*6+face;if(block===BLOCK.FURNACE)return face===4?49:48;}
   if(block===BLOCK.GRASS){ if(face===2) return TILE.grassTop; if(face===3) return TILE.dirt; return TILE.grassSide; }
   if(block===BLOCK.DIRT) return TILE.dirt;
   if(block===BLOCK.STONE) return TILE.stone;
@@ -466,7 +470,8 @@ function rebuildWorldMesh(){
     else if(face===3){ verts=[[cx-s,cy-s,cz-s],[cx+s,cy-s,cz-s],[cx+s,cy-s,cz+s],[cx-s,cy-s,cz+s]]; normal=[0,-1,0]; }
     else if(face===4){ verts=[[cx+s,cy-s,cz+s],[cx-s,cy-s,cz+s],[cx-s,cy+s,cz+s],[cx+s,cy+s,cz+s]]; normal=[0,0,1]; }
     else { verts=[[cx-s,cy-s,cz-s],[cx+s,cy-s,cz-s],[cx+s,cy+s,cz-s],[cx-s,cy+s,cz-s]]; normal=[0,0,-1]; }
-    var atlasW=ATLAS_COLS*16,u0=(tile*16+.5)/atlasW,u1=(tile*16+15.5)/atlasW,v0=.5/16,v1=15.5/16;
+    var rect=tileRect(tile),atlasW=atlasInfo.atlas.width,atlasH=atlasInfo.atlas.height,inset=.001;
+    var u0=(rect.x+inset)/atlasW,u1=(rect.x+rect.size-inset)/atlasW,v0=1-(rect.y+rect.size-inset)/atlasH,v1=1-(rect.y+inset)/atlasH;
     var uvsFace=[[u0,v0],[u1,v0],[u1,v1],[u0,v1]],faceShade=[.86,.72,1,.56,.92,.78][face];
     var a=normal[0]?[0,1,0]:[1,0,0],b=normal[2]?[0,1,0]:[0,0,1];
     for(var i=0;i<4;i++){
@@ -557,7 +562,7 @@ function buildHotbar(){
     var cv=document.createElement('canvas'); cv.width=32; cv.height=32; var g=cv.getContext('2d'); g.imageSmoothingEnabled=false;
     var tile=tileFor(i,2);
     if(tile!==undefined){
-      var sx=tile*16; g.drawImage(atlasInfo.atlas, sx,0,16,16, 0,0,32,32);
+      var rect=tileRect(tile); g.drawImage(atlasInfo.atlas, rect.x,rect.y,rect.size,rect.size, 0,0,32,32);
     }
     slot.appendChild(cv);
     var lab=document.createElement('span'); lab.textContent=i; slot.appendChild(lab);
@@ -567,7 +572,7 @@ function buildHotbar(){
   // add furnace to hotbar as 9 if needed
   var slotF=document.createElement('div'); slotF.className='slot'+(9===selected?' sel':'');
   var cvF=document.createElement('canvas'); cvF.width=32; cvF.height=32; var gF=cvF.getContext('2d'); gF.imageSmoothingEnabled=false;
-  var tF=tileFor(BLOCK.FURNACE,4); gF.drawImage(atlasInfo.atlas, tF*16,0,16,16, 0,0,32,32);
+  var rectF=tileRect(tileFor(BLOCK.FURNACE,4)); gF.drawImage(atlasInfo.atlas, rectF.x,rectF.y,rectF.size,rectF.size, 0,0,32,32);
   slotF.appendChild(cvF); var labF=document.createElement('span'); labF.textContent='9'; slotF.appendChild(labF);
   (function(){ slotF.addEventListener('click', function(){ setSelected(9); }); })();
   bar.appendChild(slotF);
