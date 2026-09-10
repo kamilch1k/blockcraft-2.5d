@@ -68,7 +68,6 @@ body.menu-mode .hud, body.menu-mode .hotbar, body.menu-mode .crosshair, body.men
 
 <script src="vendor/three.min.js"></script>
 <script src="vendor/OrbitControls.js"></script>
-<script src="voxv2-textures.js"></script>
 <script>
 (function(){
 var WORLD=42, HEIGHT=11, ATLAS_COLS=12;
@@ -77,24 +76,85 @@ var TILE={grassTop:0,grassSide:1,dirt:2,stone:3,woodSide:4,woodTop:5,leaves:6,sa
 
 function mk(w,h){var c=document.createElement('canvas');c.width=w;c.height=h;return c}
 function makeAtlas(){
-  var atlas=mk(ATLAS_COLS*16,16),g=atlas.getContext('2d');
-  g.imageSmoothingEnabled=false;
-  function rgba(hex,at){return [parseInt(hex.slice(at,at+2),16),parseInt(hex.slice(at+2,at+4),16),parseInt(hex.slice(at+4,at+6),16),parseInt(hex.slice(at+6,at+8),16)]}
-  function voxTile(tile,block,face){
-    var packed=window.VOXV2_PX4.faces[(block-1)*6+face];
-    for(var py=0;py<4;py++) for(var px=0;px<4;px++){
-      var c=rgba(packed,(py*4+px)*8);
-      g.fillStyle='rgba('+c[0]+','+c[1]+','+c[2]+','+(c[3]/255)+')';
-      g.fillRect(tile*16+px*4,py*4,4,4);
-    }
+  var atlas=mk(ATLAS_COLS*16,16), g=atlas.getContext('2d');
+  function draw(idx, fn){
+    var c=mk(16,16), gg=c.getContext('2d'); fn(gg);
+    g.drawImage(c, idx*16, 0);
   }
-  voxTile(TILE.grassTop,1,2);voxTile(TILE.grassSide,1,4);voxTile(TILE.dirt,2,2);
-  voxTile(TILE.stone,4,2);voxTile(TILE.woodSide,8,4);voxTile(TILE.woodTop,8,2);
-  voxTile(TILE.leaves,10,2);voxTile(TILE.sand,3,2);voxTile(TILE.planks,27,2);
-  voxTile(TILE.snow,5,2);voxTile(TILE.furnaceSide,18,4);voxTile(TILE.furnaceFront,20,4);
+  draw(TILE.grassTop, function(g){
+    g.fillStyle='#7bb24d';g.fillRect(0,0,16,16);
+    for(var i=0;i<70;i++){var x=(Math.random()*16)|0,y=(Math.random()*16)|0; g.fillStyle=Math.random()<0.5?'#5d8a32':'#9ed46a'; g.fillRect(x,y,1,1)}
+    for(var i=0;i<6;i++){var x=(Math.random()*12)|0,y=(Math.random()*12)|0; g.fillStyle='#3a5f1e'; g.fillRect(x,y,2,2)}
+  });
+  draw(TILE.grassSide, function(g){
+    g.fillStyle='#8b5e34';g.fillRect(0,0,16,16);
+    for(var i=0;i<60;i++){var x=(Math.random()*16)|0,y=(Math.random()*16)|0; if(y<4)continue; g.fillStyle=Math.random()<0.5?'#6b3f1f':'#a67c52'; g.fillRect(x,y,1,1)}
+    g.fillStyle='#5fa02a';g.fillRect(0,0,16,4);
+    g.fillStyle='#7bb24d'; for(var x=0;x<16;x+=2) if(Math.random()<0.7) g.fillRect(x,2,1,2)
+    g.fillStyle='#3a6b1a'; for(var x=1;x<16;x+=3) g.fillRect(x,0,1,4)
+  });
+  draw(TILE.dirt, function(g){
+    g.fillStyle='#8b5e34';g.fillRect(0,0,16,16);
+    for(var i=0;i<90;i++){var x=(Math.random()*16)|0,y=(Math.random()*16)|0; g.fillStyle=['#6b3f1f','#a67c52','#5a3510'][Math.floor(Math.random()*3)]; g.fillRect(x,y,1,1)}
+  });
+  draw(TILE.stone, function(g){
+    g.fillStyle='#9e9e9e';g.fillRect(0,0,16,16);
+    for(var i=0;i<120;i++){var x=(Math.random()*16)|0,y=(Math.random()*16)|0; var v=Math.floor(158+Math.random()*40-20); g.fillStyle='rgb('+v+','+v+','+v+')'; g.fillRect(x,y,1,1)}
+    g.fillStyle='#6e6e6e'; g.fillRect(3,3,5,2); g.fillRect(9,10,4,2);
+  });
+  draw(TILE.woodSide, function(g){
+    g.fillStyle='#8d5a2e';g.fillRect(0,0,16,16);
+    g.fillStyle='#6b3a12'; for(var x=0;x<16;x+=4){ g.fillRect(x,0,1,16); g.fillRect(x+1,0,1,16)}
+    g.fillStyle='#3d2110'; g.fillRect(0,7,16,1);
+    g.fillStyle='#c49a5e'; for(var y=2;y<16;y+=4) g.fillRect(2,y,2,1)
+  });
+  draw(TILE.woodTop, function(g){
+    g.fillStyle='#c49a5e';g.fillRect(0,0,16,16);
+    g.fillStyle='#a67c3a'; g.fillRect(2,2,12,12);
+    g.fillStyle='#8b5e2e'; g.fillRect(4,4,8,8);
+    g.fillStyle='#5e3a15'; g.fillRect(6,6,4,4);
+  });
+  draw(TILE.leaves, function(g){
+    g.fillStyle='#3e8d32';g.fillRect(0,0,16,16);
+    for(var i=0;i<80;i++){var x=(Math.random()*16)|0,y=(Math.random()*16)|0; g.fillStyle=Math.random()<0.5?'#5fbb52':'#2f6b24'; g.fillRect(x,y,1,1)}
+    for(var i=0;i<6;i++){var x=(Math.random()*16)|0,y=(Math.random()*16)|0; g.fillStyle='#a8e0a0'; g.fillRect(x,y,2,2)}
+  });
+  draw(TILE.sand, function(g){
+    g.fillStyle='#d1c07a';g.fillRect(0,0,16,16);
+    for(var i=0;i<60;i++){var x=(Math.random()*16)|0,y=(Math.random()*16)|0; g.fillStyle=['#c2b07a','#e0d4a0','#b8a46a'][Math.floor(Math.random()*3)]; g.fillRect(x,y,1,1)}
+  });
+  draw(TILE.planks, function(g){
+    g.fillStyle='#c19a5b';g.fillRect(0,0,16,16);
+    g.fillStyle='#a67c3a'; g.fillRect(0,3,16,1); g.fillRect(0,7,16,1); g.fillRect(0,11,16,1);
+    g.fillStyle='#8b5e2e'; g.fillRect(0,3,16,1); g.fillRect(5,0,1,16); g.fillRect(10,0,1,16);
+  });
+  draw(TILE.snow, function(g){
+    g.fillStyle='#f2f7ff';g.fillRect(0,0,16,16);
+    for(var i=0;i<70;i++){var x=(Math.random()*16)|0,y=(Math.random()*16)|0; g.fillStyle=Math.random()<0.5?'#d6e6ff':'#ffffff'; g.fillRect(x,y,1,1)}
+    for(var i=0;i<12;i++){var x=(Math.random()*16)|0,y=(Math.random()*16)|0; g.fillStyle='#a8c4e5'; g.fillRect(x,y,1,1)}
+    g.fillStyle='#c8dfff88'; g.fillRect(0,14,16,2);
+  });
+  draw(TILE.furnaceSide, function(g){
+    g.fillStyle='#8a8a8a'; g.fillRect(0,0,16,16);
+    for(var i=0;i<80;i++){var x=(Math.random()*16)|0,y=(Math.random()*16)|0; g.fillStyle=Math.random()<0.5?'#6e6e6e':'#a8a8a8'; g.fillRect(x,y,1,1)}
+    g.fillStyle='#5a5a5a'; g.fillRect(0,0,16,1); g.fillRect(0,15,16,1); g.fillRect(0,0,1,16); g.fillRect(15,0,1,16);
+    g.fillStyle='#3a3a3a'; g.fillRect(2,2,12,1); g.fillRect(2,13,12,1);
+  });
+  draw(TILE.furnaceFront, function(g){
+    g.fillStyle='#7a7a7a'; g.fillRect(0,0,16,16);
+    for(var i=0;i<60;i++){var x=(Math.random()*16)|0,y=(Math.random()*16)|0; g.fillStyle=Math.random()<0.5?'#5a5a5a':'#9a9a9a'; g.fillRect(x,y,1,1)}
+    g.fillStyle='#1a1a1a'; g.fillRect(3,4,10,8);
+    g.fillStyle='#2a2a2a'; g.fillRect(4,5,8,6);
+    // fire glow inside
+    g.fillStyle='#ff6a00'; g.fillRect(5,7,6,3);
+    g.fillStyle='#ffcc00'; g.fillRect(6,8,4,1);
+    g.fillStyle='#ff3c00'; g.fillRect(5,6,6,1);
+    g.fillStyle='#3a3a3a'; g.fillRect(7,4,2,1); g.fillRect(7,11,2,1);
+    g.fillStyle='#5a5a5a'; g.fillRect(0,0,16,1); g.fillRect(0,15,16,1); g.fillRect(0,0,1,16); g.fillRect(15,0,1,16);
+  });
   var tex=new THREE.CanvasTexture(atlas);
-  tex.magFilter=THREE.NearestFilter;tex.minFilter=THREE.NearestFilter;tex.encoding=THREE.sRGBEncoding;
-  return {atlas:atlas,tex:tex}
+  tex.magFilter=THREE.NearestFilter; tex.minFilter=THREE.NearestFilter; tex.encoding=THREE.sRGBEncoding;
+  return {atlas:atlas, tex:tex}
 }
 var atlasInfo=makeAtlas();
 var atlasTex=atlasInfo.tex;
