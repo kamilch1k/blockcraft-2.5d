@@ -3,7 +3,7 @@ name: Deploy Blockcraft to GitHub Pages
 on:
   push:
     branches:
-      - feature/voxv2-strategy
+      - gh-pages
   workflow_dispatch:
 
 permissions:
